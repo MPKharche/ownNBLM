@@ -1,0 +1,39 @@
+# API-only stack for VPS (frontend on Vercel proxies /api here)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ownnblm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ownnblm}
+      POSTGRES_DB: ownnblm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ownnblm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "8010:8000"
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://ownnblm:${POSTGRES_PASSWORD:-ownnblm}@postgres:5432/ownnblm
+      CORS_ORIGINS: https://frontend-jet-ten-16.vercel.app,https://ownnblm.vercel.app
+      FRONTEND_URL: https://frontend-jet-ten-16.vercel.app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             (python -m app.seed || true) &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
