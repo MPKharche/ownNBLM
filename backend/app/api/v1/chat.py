@@ -13,11 +13,19 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.deps import CurrentUser, DbSession
 from app.core.rate_limit import ChatRateLimit
+from app.core.config import get_settings
 from app.models.message import Message
 from app.models.org import Org
 from app.models.session import Session as ChatSession
 from app.services.credits import check_query_allowed, deduct_query, usage_percent
 from app.services.llm import LLMRouterError, stream_chat
+from app.services.llm_burn import (
+    LLMBurnExceeded,
+    approx_tokens,
+    assert_budget,
+    estimate_chat_usd,
+    record_spend,
+)
 from app.services.retrieval import retrieve
 
 logger = structlog.get_logger()
@@ -83,6 +91,7 @@ async def chat_sse(
     if session is None or session.org_id != user.org_id:
         raise HTTPException(status_code=404)
 
+    settings = get_settings()
     org = db.get(Org, user.org_id)
     tier = org.tier if org else "free"
     allowed, usage = check_query_allowed(db, user.org_id)
@@ -109,6 +118,15 @@ async def chat_sse(
         )
         db.commit()
         llm_messages, citations = _build_messages(db, session, body.message)
+        prompt_text = "\n".join(m["content"] for m in llm_messages)
+        assert_budget(
+            db,
+            user.org_id,
+            estimate_chat_usd(approx_tokens(prompt_text), settings.llm_max_output_tokens),
+        )
+    except LLMBurnExceeded as e:
+        logger.warning("chat_burn_cap", org_id=user.org_id, error=str(e))
+        return _sse_error(str(e))
     except Exception as e:
         logger.exception("chat_prepare_failed", session_id=session_id)
         return _sse_error(str(e))
@@ -118,9 +136,16 @@ async def chat_sse(
     session_db_id = session.id
 
     async def event_stream():
+        from app.services.llm_burn import burn_status
+
         pct = usage_percent(usage)
         if pct >= 80:
             yield f"data: {json.dumps({'event': 'credit_warning', 'used': usage.queries_used, 'limit': usage.query_limit, 'pct': pct})}\n\n"
+
+        with SessionLocal() as burn_db:
+            burn = burn_status(burn_db, org_id)
+        if burn["enabled"] and burn["usage_percent"] >= 80:
+            yield f"data: {json.dumps({'event': 'burn_warning', 'spent_usd': burn['spent_usd'], 'budget_usd': burn['budget_usd'], 'pct': burn['usage_percent']})}\n\n"
 
         full_answer: list[str] = []
         try:
@@ -128,7 +153,7 @@ async def chat_sse(
                 full_answer.append(token)
                 yield f"data: {json.dumps({'event': 'token', 'delta': token})}\n\n"
                 await asyncio.sleep(0)
-        except (LLMRouterError, Exception) as e:
+        except (LLMRouterError, LLMBurnExceeded, Exception) as e:
             logger.warning("chat_stream_failed", error=str(e))
             yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
             return
@@ -138,7 +163,20 @@ async def chat_sse(
             yield f"data: {json.dumps({'event': 'error', 'message': 'Model returned an empty response'})}\n\n"
             return
 
+        prompt_tokens = approx_tokens("\n".join(m["content"] for m in llm_messages))
+        completion_tokens = approx_tokens(answer)
+        chat_model = body.model or settings.default_llm_model
+
         with SessionLocal() as save_db:
+            record_spend(
+                save_db,
+                org_id,
+                estimate_chat_usd(prompt_tokens, completion_tokens),
+                kind="chat",
+                model=chat_model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+            )
             save_db.add(
                 Message(
                     id=assistant_id,

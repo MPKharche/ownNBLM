@@ -47,6 +47,20 @@ export function BillingPage() {
             Storage: {(usage.storage_bytes / 1e6).toFixed(1)} MB /{" "}
             {(usage.storage_limit_bytes / 1e9).toFixed(1)} GB · Plan: {usage.tier}
           </p>
+          {usage.llm_burn_enabled && usage.llm_budget_usd && (
+            <>
+              <p className="mt-3 text-sm">
+                LLM burn ({usage.llm_burn_percent}%): ${usage.llm_spent_usd} spent of $
+                {usage.llm_budget_usd} cap · ${usage.llm_remaining_usd} left
+              </p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted/30">
+                <div
+                  className="progress-bar-fill h-full bg-amber-500"
+                  style={{ width: `${Math.min(usage.llm_burn_percent, 100)}%` }}
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 

@@ -6,6 +6,7 @@ from app.models.session import Session
 from app.models.session_note import SessionNote
 from app.models.share_link import ShareLink
 from app.models.source import Source
+from app.models.llm_spend import LlmSpendEvent
 from app.models.usage import WorkspaceUsage
 from app.models.user import User
 
@@ -18,6 +19,7 @@ __all__ = [
     "Session",
     "Message",
     "WorkspaceUsage",
+    "LlmSpendEvent",
     "ShareLink",
     "SessionNote",
 ]

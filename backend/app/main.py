@@ -26,6 +26,7 @@ from app.models import (  # noqa: F401 — register ORM tables
     Source,
     User,
     WorkspaceUsage,
+    LlmSpendEvent,
 )
 
 settings = get_settings()
@@ -62,6 +63,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    allow_origin_regex=r"https://([a-z0-9-]+\.)*vercel\.app" if settings.is_production else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

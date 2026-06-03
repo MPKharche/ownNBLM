@@ -6,14 +6,26 @@ import json
 import os
 
 import litellm
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.services.llm_burn import approx_tokens, assert_budget, estimate_embed_usd, record_spend
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
+def embed_texts(
+    db: Session,
+    org_id: str,
+    texts: list[str],
+) -> list[list[float]]:
     settings = get_settings()
     if not settings.openrouter_api_key:
         raise ValueError("OPENROUTER_API_KEY is required for embeddings")
+    if not texts:
+        return []
+
+    total_tokens = sum(approx_tokens(t) for t in texts)
+    assert_budget(db, org_id, estimate_embed_usd(total_tokens))
+
     os.environ["OPENROUTER_API_KEY"] = settings.openrouter_api_key
     batch_size = settings.embed_batch_size
     all_vectors: list[list[float]] = []
@@ -28,6 +40,16 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         )
         for item in resp.data:
             all_vectors.append(list(item["embedding"]))
+
+    record_spend(
+        db,
+        org_id,
+        estimate_embed_usd(total_tokens),
+        kind="embed",
+        model=settings.default_embed_model,
+        prompt_tokens=total_tokens,
+    )
+    db.flush()
     return all_vectors
 
 

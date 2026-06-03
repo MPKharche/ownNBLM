@@ -15,10 +15,14 @@ from app.core.config import PREMIUM_MODELS, get_settings
 logger = structlog.get_logger()
 
 # OpenRouter rejects requests when max_tokens exceeds affordable credits
-DEFAULT_MAX_TOKENS = 1024
+DEFAULT_MAX_TOKENS = 512
 
 
 class LLMRouterError(Exception):
+    pass
+
+
+class LLMBudgetError(LLMRouterError):
     pass
 
 
@@ -61,10 +65,11 @@ async def stream_chat(
     *,
     org_tier: str,
     model: str | None = None,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
+    max_tokens: int | None = None,
 ) -> AsyncIterator[str]:
     settings = get_settings()
     model = model or settings.default_llm_model
+    max_tokens = max_tokens if max_tokens is not None else settings.llm_max_output_tokens
     api_key = settings.openrouter_api_key
     if not api_key:
         raise LLMRouterError("No LLM API key configured")

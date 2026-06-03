@@ -16,6 +16,7 @@ from app.models.chunk import Chunk
 from app.models.document import Document
 from app.models.source import Source
 from app.services.embeddings import embed_texts, embedding_to_json
+from app.services.llm_burn import LLMBurnExceeded
 from app.services.storage import get_storage
 
 logger = structlog.get_logger()
@@ -107,7 +108,13 @@ def run_ingest(db: Session, source_id: str, progress_cb=None) -> None:
         doc.page_count = page_count
 
     emit(50, "Generating embeddings")
-    vectors = embed_texts(pieces)
+    try:
+        vectors = embed_texts(db, source.org_id, pieces)
+    except LLMBurnExceeded as e:
+        source.status = "error"
+        source.error_message = str(e)
+        db.commit()
+        return
 
     emit(80, "Storing index")
     for idx, (text, vec) in enumerate(zip(pieces, vectors, strict=True)):

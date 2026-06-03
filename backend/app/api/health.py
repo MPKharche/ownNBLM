@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app import __version__
 from app.core.config import get_settings
 from app.core.database import SessionLocal
+from app.services.llm_burn import burn_status
 from app.tasks.huey_app import huey
 
 router = APIRouter(tags=["health"])
@@ -67,6 +68,10 @@ async def health():
     storage_status = _check_storage()
     openrouter_status = await _check_openrouter()
     queue_status = _check_task_queue()
+    burn = None
+    if settings.llm_budget_enabled:
+        with SessionLocal() as db:
+            burn = burn_status(db, "*")
 
     checks = {
         "database": db_status,
@@ -78,6 +83,7 @@ async def health():
     return {
         "status": "ok" if all_ok else "degraded",
         "checks": checks,
+        "llm_burn": burn,
         "version": __version__,
         "environment": settings.environment,
     }

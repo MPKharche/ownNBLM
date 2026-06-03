@@ -43,22 +43,51 @@ Open **http://localhost:5173** → Chat → ask e.g. *"What are Attention Residu
 - Login: `admin@ownnblm.local` / `admin123`
 - Dev header (no login): `X-Dev-User-Id: 00000000-0000-4000-8000-000000000001`
 
-## Production
+## Production (Vercel + Render)
+
+**Frontend (Vercel, GitHub-linked):**
+
+1. [vercel.com/new](https://vercel.com/new) → Import `MPKharche/ownNBLM`
+2. Set **Root Directory** to `frontend`
+3. Add env: `VITE_API_URL` = `https://ownnblm-api.onrender.com` (after Render deploy)
+4. Deploy — prod URL e.g. `https://ownnblm.vercel.app`
+
+**Backend API (Render, same GitHub repo):**
+
+1. [dashboard.render.com](https://dashboard.render.com) → **New Blueprint** → connect repo
+2. Render reads `render.yaml` (Postgres + API web service)
+3. Set **OPENROUTER_API_KEY** on the `ownnblm-api` service
+4. Update `CORS_ORIGINS` / `FRONTEND_URL` on Render if your Vercel URL differs
+
+**Docker (self-hosted VPS):**
 
 ```powershell
-# Set ENVIRONMENT=production, SECRET_KEY, DATABASE_URL, STRIPE_* in .env
 docker compose -f docker-compose.prod.yml up --build
 ```
 
-Frontend nginx proxies `/api` → API. Use Postgres + Redis from prod compose.
-
 ## Verified (2026-06-03)
 
-- `pytest` — 7 passed (health, rate limits, usage, share links, **live OpenRouter chat SSE**)
+- `pytest` — 10 passed (health, rate limits, **LLM burn cap**, usage, share, live OpenRouter chat SSE)
 - `npm run build` — production bundle + PWA service worker
-- UI flows — login/register, corpus upload, SSE chat + citations, share link, billing usage
+- UI flows — login/register, corpus upload, SSE chat + citations, share link, billing usage + **LLM burn meter**
 - Sample corpus: *Attention Residuals* PDF (42 chunks, embeddings via OpenRouter)
 - Prod stack: `docker compose -f docker-compose.prod.yml up --build`
+
+## LLM burn control
+
+Default cap: **$0.005 (0.5¢) per 48 hours** (global). Configure in `.env`:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LLM_BUDGET_ENABLED` | `true` | Enforce rolling USD cap |
+| `LLM_BUDGET_USD` | `0.005` | Max spend per window |
+| `LLM_BUDGET_WINDOW_HOURS` | `48` | Rolling window |
+| `LLM_BUDGET_SCOPE` | `global` | `global` or `org` |
+| `LLM_MAX_OUTPUT_TOKENS` | `512` | Chat output cap (quality-safe) |
+| `LLM_RETRIEVAL_TOP_K` | `5` | Chunks per query (was 8) |
+| `LLM_MAX_CHUNK_CHARS` | `800` | Context per chunk (was 1200) |
+
+Burn is tracked on `/api/v1/usage/dashboard` and `/health` (`llm_burn`). Chat and ingest block when cap is reached.
 
 ## API highlights
 

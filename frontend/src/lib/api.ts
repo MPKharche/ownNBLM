@@ -81,6 +81,11 @@ export type Usage = {
   storage_bytes: number
   storage_limit_bytes: number
   tier: string
+  llm_burn_enabled: boolean
+  llm_budget_usd: string | null
+  llm_spent_usd: string | null
+  llm_remaining_usd: string | null
+  llm_burn_percent: number
 }
 
 export async function streamChat(

@@ -1,0 +1,40 @@
+# Backend API — link this repo on Render (same GitHub as Vercel).
+# Set OPENROUTER_API_KEY in Render dashboard after first deploy.
+databases:
+  - name: ownnblm-db
+    plan: free
+    databaseName: ownnblm
+    user: ownnblm
+
+services:
+  - type: web
+    name: ownnblm-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install .
+    startCommand: python -m alembic upgrade head && (python -m app.seed || true) && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: LLM_BUDGET_ENABLED
+        value: "true"
+      - key: LLM_BUDGET_USD
+        value: "0.005"
+      - key: LLM_BUDGET_WINDOW_HOURS
+        value: "48"
+      - key: FRONTEND_URL
+        value: https://ownnblm.vercel.app
+      - key: CORS_ORIGINS
+        value: https://ownnblm.vercel.app
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ownnblm-db
+          property: connectionString

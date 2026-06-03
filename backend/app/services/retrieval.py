@@ -5,13 +5,15 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.chunk import Chunk
 from app.models.document import Document
 from app.models.source import Source
 from app.services.embeddings import embed_texts, embedding_from_json
+from app.services.llm_burn import approx_tokens, assert_budget, estimate_embed_usd
 
 
 @dataclass
@@ -36,14 +38,37 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
+def _has_indexed_chunks(db: Session, org_id: str, source_ids: list[str] | None) -> bool:
+    stmt = (
+        select(func.count())
+        .select_from(Chunk)
+        .join(Document, Chunk.document_id == Document.id)
+        .join(Source, Document.source_id == Source.id)
+        .where(Chunk.org_id == org_id, Source.status == "indexed")
+    )
+    if source_ids:
+        stmt = stmt.where(Source.id.in_(source_ids))
+    return db.execute(stmt).scalar_one() > 0
+
+
 def retrieve(
     db: Session,
     org_id: str,
     query: str,
     source_ids: list[str] | None = None,
-    top_k: int = 8,
+    top_k: int | None = None,
 ) -> list[RetrievedChunk]:
-    query_vec = embed_texts([query])[0]
+    settings = get_settings()
+    top_k = top_k if top_k is not None else settings.llm_retrieval_top_k
+    max_chars = settings.llm_max_chunk_chars
+
+    if not _has_indexed_chunks(db, org_id, source_ids):
+        return []
+
+    embed_tokens = approx_tokens(query)
+    assert_budget(db, org_id, estimate_embed_usd(embed_tokens))
+
+    query_vec = embed_texts(db, org_id, [query])[0]
     stmt = (
         select(Chunk, Document, Source)
         .join(Document, Chunk.document_id == Document.id)
@@ -65,7 +90,7 @@ def retrieve(
                 source_id=source.id,
                 document_id=doc.id,
                 page=chunk.page,
-                text=chunk.text[:1200],
+                text=chunk.text[:max_chars],
                 score=score,
                 source_name=source.name,
             )
