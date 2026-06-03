@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
 
 from app.core.deps import DbSession
+from app.core.rate_limit import AuthRateLimit
 from app.services.auth_service import authenticate, create_access_token, register_user
 
 router = APIRouter()
@@ -28,7 +29,7 @@ class TokenResponse(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: DbSession):
+def login(body: LoginRequest, db: DbSession, _rate: AuthRateLimit):
     user = authenticate(db, body.email, body.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -42,7 +43,7 @@ def login(body: LoginRequest, db: DbSession):
 
 
 @router.post("/register", response_model=TokenResponse)
-def register(body: RegisterRequest, db: DbSession):
+def register(body: RegisterRequest, db: DbSession, _rate: AuthRateLimit):
     try:
         user = register_user(
             db, body.email, body.password, body.org_name, body.display_name

@@ -6,11 +6,11 @@ import structlog
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app import __version__
+from app.core.rate_limit import limiter
 from app.api.health import router as health_router
 from app.api.v1 import router as v1_router
 from app.core.config import get_settings
@@ -39,9 +39,6 @@ structlog.configure(
         else structlog.processors.JSONRenderer(),
     ],
 )
-
-limiter = Limiter(key_func=get_remote_address)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

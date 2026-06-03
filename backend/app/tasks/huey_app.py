@@ -14,34 +14,9 @@ huey = SqliteHuey(filename=str(_huey_dir / "huey.db"))
 
 @huey.task(retries=3, retry_delay=2)
 def ingest_source_task(source_id: str) -> None:
-    from app.core.database import SessionLocal
-    from app.core.events import publish
-    from app.services.ingest import run_ingest
+    from app.services.ingest_runner import _ingest_job
 
-    def progress_cb(pct: int, step: str) -> None:
-        publish(
-            f"ingest:{source_id}",
-            {
-                "event": "ingest_progress",
-                "source_id": source_id,
-                "pct": pct,
-                "step": step,
-            },
-        )
-
-    with SessionLocal() as db:
-        try:
-            run_ingest(db, source_id, progress_cb=progress_cb)
-            publish(
-                f"ingest:{source_id}",
-                {"event": "ingest_done", "source_id": source_id},
-            )
-        except Exception as e:
-            publish(
-                f"ingest:{source_id}",
-                {"event": "ingest_error", "source_id": source_id, "reason": str(e)},
-            )
-            raise
+    _ingest_job(source_id)
 
 
 @huey.task()

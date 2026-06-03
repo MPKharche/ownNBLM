@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import ReactMarkdown from "react-markdown"
-import { MessageSquareIcon, PlusIcon } from "lucide-react"
+import { FileUpIcon, MessageSquareIcon, PlusIcon, SparklesIcon } from "lucide-react"
+import { Link } from "react-router-dom"
 
+import { CitationChips } from "@/components/citation-chips"
+import { SourceExcerptPanel, type Citation } from "@/components/source-excerpt-panel"
 import { api, streamChat, type Session, type Source } from "@/lib/api"
 import { chatMessageTransition, chatMessageVariants, useMotionSafe } from "@/lib/motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-
-type Citation = { source_id: string; page?: number; chunk_id: string; excerpt: string }
 
 type Msg = { role: string; content: string; citations?: Citation[] }
 
@@ -22,6 +23,9 @@ export function ChatPage() {
   const [viewer, setViewer] = useState<Citation | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const motionSafe = useMotionSafe()
+
+  const indexedCount = sources.filter((s) => s.status === "indexed").length
+  const hasSessions = sessions.length > 0
 
   useEffect(() => {
     api<Session[]>("/api/v1/sessions").then((s) => {
@@ -81,15 +85,18 @@ export function ChatPage() {
   return (
     <div className="flex h-[calc(100svh-8rem)] min-h-0">
       <aside className="w-48 shrink-0 border-r border-border p-2">
-        <Button type="button" variant="outline" size="sm" className="mb-2 w-full" onClick={newSession}>
+        <Button type="button" variant="outline" size="sm" className="mb-2 w-full cursor-pointer" onClick={newSession}>
           <PlusIcon className="size-4" /> New
         </Button>
+        {!hasSessions && (
+          <p className="mb-2 px-1 text-xs text-muted-foreground">No sessions yet — click New to start.</p>
+        )}
         {sessions.map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => setActiveId(s.id)}
-            className={`mb-1 w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted ${activeId === s.id ? "bg-muted font-medium" : ""}`}
+            className={`mb-1 w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-xs transition-colors duration-200 hover:bg-muted ${activeId === s.id ? "bg-muted font-medium" : ""}`}
           >
             {s.title}
           </button>
@@ -98,12 +105,44 @@ export function ChatPage() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && (
-            <p className="text-center text-sm text-muted-foreground">
-              <MessageSquareIcon className="mx-auto mb-2 size-8" />
-              Ask a question about your corpus
-            </p>
+          {!hasSessions && (
+            <div className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/30 p-8 text-center">
+              <SparklesIcon className="mb-3 size-10 text-accent" />
+              <h2 className="font-heading text-lg font-medium">Start your first research session</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Click <strong>New</strong> in the sidebar to create a session, then ask questions grounded in your
+                documents.
+              </p>
+              {indexedCount === 0 && (
+                <Link
+                  to="/corpus"
+                  className="upload-zone-pulse mt-6 flex w-full cursor-pointer flex-col items-center rounded-lg border border-dashed border-border p-6 transition-colors duration-200 hover:border-accent"
+                >
+                  <FileUpIcon className="mb-2 size-8 text-muted-foreground" />
+                  <span className="text-sm font-medium">Upload a PDF on the Corpus page first</span>
+                </Link>
+              )}
+              <Button type="button" className="mt-4 cursor-pointer" onClick={newSession}>
+                <PlusIcon className="size-4" /> New session
+              </Button>
+            </div>
           )}
+
+          {hasSessions && messages.length === 0 && activeId && (
+            <div className="text-center text-sm text-muted-foreground">
+              <MessageSquareIcon className="mx-auto mb-2 size-8" />
+              <p>Ask a question about your corpus</p>
+              {indexedCount === 0 && (
+                <p className="mt-2">
+                  <Link to="/corpus" className="text-accent underline-offset-2 hover:underline">
+                    Upload documents
+                  </Link>{" "}
+                  to get cited answers.
+                </p>
+              )}
+            </div>
+          )}
+
           {messages.map((m, i) => (
             <motion.div
               key={i}
@@ -116,16 +155,7 @@ export function ChatPage() {
               <div className="prose prose-invert max-w-none text-sm">
                 <ReactMarkdown>{m.content}</ReactMarkdown>
               </div>
-              {m.citations?.map((c) => (
-                <button
-                  key={c.chunk_id}
-                  type="button"
-                  onClick={() => setViewer(c)}
-                  className="mt-2 mr-2 rounded border border-border bg-surface px-2 py-1 text-xs transition-colors hover:border-accent"
-                >
-                  [{c.excerpt.slice(0, 40)}…]
-                </button>
-              ))}
+              <CitationChips citations={m.citations} onSelect={setViewer} />
             </motion.div>
           ))}
           <div ref={bottomRef} />
@@ -135,25 +165,16 @@ export function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Ask about your documents…"
+            placeholder={hasSessions ? "Ask about your documents…" : "Create a session first…"}
             disabled={streaming || !activeId}
           />
-          <Button type="button" onClick={send} disabled={streaming || !activeId}>
+          <Button type="button" className="cursor-pointer" onClick={send} disabled={streaming || !activeId}>
             Send
           </Button>
         </div>
       </div>
 
-      {viewer && (
-        <aside className="panel-slide w-72 shrink-0 border-l border-border bg-card p-4 text-sm">
-          <h3 className="font-heading font-medium">Source excerpt</h3>
-          <p className="mt-2 text-muted-foreground">Page {viewer.page ?? "?"}</p>
-          <p className="mt-3 leading-relaxed">{viewer.excerpt}</p>
-          <Button type="button" variant="ghost" size="sm" className="mt-4" onClick={() => setViewer(null)}>
-            Close
-          </Button>
-        </aside>
-      )}
+      {viewer && <SourceExcerptPanel citation={viewer} onClose={() => setViewer(null)} />}
     </div>
   )
 }

@@ -11,11 +11,12 @@ from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.deps import CurrentUser, DbSession
-from app.core.events import publish
+from app.core.events import publish, subscribe
+from app.core.rate_limit import IngestRateLimit
 from app.models.source import Source
 from app.services.credits import get_or_create_usage
+from app.services.ingest_runner import start_ingest_background
 from app.services.storage import get_storage
-from app.tasks.huey_app import ingest_source_task
 
 router = APIRouter()
 
@@ -43,6 +44,7 @@ def list_sources(db: DbSession, user: CurrentUser):
 async def upload_source(
     db: DbSession,
     user: CurrentUser,
+    _rate: IngestRateLimit,
     file: UploadFile = File(...),
 ):
     settings = get_settings()
@@ -80,7 +82,16 @@ async def upload_source(
     db.commit()
     db.refresh(source)
 
-    ingest_source_task.call_local(source.id)
+    publish(
+        f"ingest:{source.id}",
+        {
+            "event": "ingest_progress",
+            "source_id": source.id,
+            "pct": 5,
+            "step": "Queued",
+        },
+    )
+    start_ingest_background(source.id)
     return source
 
 
@@ -96,29 +107,37 @@ def delete_source(source_id: str, db: DbSession, user: CurrentUser):
 
 @router.get("/{source_id}/events")
 async def source_events(source_id: str, db: DbSession, user: CurrentUser):
-    import asyncio
-
-    from app.core.database import SessionLocal
-
     source = db.get(Source, source_id)
     if source is None or source.org_id != user.org_id:
         raise HTTPException(status_code=404)
 
+    if source.status == "indexed":
+        meta_chunks = 0
+        from app.models.document import Document
+
+        doc = db.query(Document).filter(Document.source_id == source_id).first()
+        if doc and doc.metadata_json:
+            try:
+                meta_chunks = json.loads(doc.metadata_json).get("chunk_count", 0)
+            except json.JSONDecodeError:
+                pass
+
+        async def done_only():
+            yield f"data: {json.dumps({'event': 'ingest_done', 'source_id': source_id, 'pct': 100, 'chunks': meta_chunks})}\n\n"
+
+        return StreamingResponse(done_only(), media_type="text/event-stream")
+
+    if source.status == "error":
+
+        async def err_only():
+            yield f"data: {json.dumps({'event': 'ingest_error', 'source_id': source_id, 'reason': source.error_message or 'Unknown error'})}\n\n"
+
+        return StreamingResponse(err_only(), media_type="text/event-stream")
+
     async def gen():
-        pct = 10
-        while True:
-            with SessionLocal() as poll_db:
-                s = poll_db.get(Source, source_id)
-                if s is None:
-                    break
-                if s.status == "indexed":
-                    yield f"data: {json.dumps({'event': 'ingest_done', 'source_id': source_id, 'pct': 100})}\n\n"
-                    break
-                if s.status == "error":
-                    yield f"data: {json.dumps({'event': 'ingest_error', 'source_id': source_id, 'reason': s.error_message})}\n\n"
-                    break
-                yield f"data: {json.dumps({'event': 'ingest_progress', 'source_id': source_id, 'pct': pct, 'step': s.status})}\n\n"
-                pct = min(pct + 15, 90)
-            await asyncio.sleep(1)
+        async for event in subscribe(f"ingest:{source_id}"):
+            if event.get("event") == "heartbeat":
+                continue
+            yield f"data: {json.dumps(event)}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")

@@ -186,3 +186,24 @@
 .panel-slide {
   transition: width 200ms ease-in-out;
 }
+
+/* Upload zone dashed border pulse */
+@keyframes upload-pulse {
+  0%,
+  100% {
+    border-color: hsl(var(--border));
+  }
+  50% {
+    border-color: hsl(var(--accent) / 0.6);
+  }
+}
+
+.upload-zone-pulse {
+  animation: upload-pulse 2.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-zone-pulse {
+    animation: none;
+  }
+}

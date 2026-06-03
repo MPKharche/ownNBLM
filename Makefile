@@ -45,9 +45,8 @@ install: install-backend install-frontend
 sync-key:
 	$(PYTHON) scripts/sync_env_key.py
 
-# Local dev without Docker
-dev-local-api:
-	cd $(BACKEND) && $(PYTHON) -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+# Local dev without Docker (frees port 8000 first — avoids ghost listeners on Windows)
+dev-local-api: restart-api
 
 restart-api:
 	-$(PYTHON) scripts/kill_port.py 8000
@@ -55,3 +54,6 @@ restart-api:
 
 dev-local-web:
 	cd $(FRONTEND) && npm run dev
+
+dev-local:
+	@echo "Run in two terminals: make dev-local-api && make dev-local-web"

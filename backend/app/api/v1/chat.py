@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.core.deps import CurrentUser, DbSession
+from app.core.rate_limit import ChatRateLimit
 from app.models.message import Message
 from app.models.org import Org
 from app.models.session import Session as ChatSession
@@ -71,7 +72,13 @@ def _sse_error(message: str) -> StreamingResponse:
 
 
 @router.post("/sessions/{session_id}/chat")
-async def chat_sse(session_id: str, body: ChatRequest, db: DbSession, user: CurrentUser):
+async def chat_sse(
+    session_id: str,
+    body: ChatRequest,
+    db: DbSession,
+    user: CurrentUser,
+    _rate: ChatRateLimit,
+):
     session = db.get(ChatSession, session_id)
     if session is None or session.org_id != user.org_id:
         raise HTTPException(status_code=404)

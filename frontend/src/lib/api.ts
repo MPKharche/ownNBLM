@@ -105,3 +105,33 @@ export async function streamChat(
   }
   if (streamError) throw new Error(streamError)
 }
+
+export type IngestEvent = {
+  event: string
+  source_id?: string
+  pct?: number
+  step?: string
+  chunks?: number
+  reason?: string
+}
+
+/** SSE ingest progress from /api/v1/sources/{id}/events (EventSource cannot send headers). */
+export function subscribeIngestEvents(
+  sourceId: string,
+  onEvent: (ev: IngestEvent) => void,
+): () => void {
+  const qs = new URLSearchParams()
+  const token = localStorage.getItem("ownnblm_token")
+  if (token) qs.set("access_token", token)
+  else if (import.meta.env.DEV) qs.set("x-dev-user-id", DEV_USER_ID)
+  const url = `${API_BASE}/api/v1/sources/${sourceId}/events?${qs}`
+  const es = new EventSource(url)
+  es.onmessage = (msg) => {
+    try {
+      onEvent(JSON.parse(msg.data) as IngestEvent)
+    } catch {
+      /* ignore */
+    }
+  }
+  return () => es.close()
+}
