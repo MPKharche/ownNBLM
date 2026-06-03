@@ -1,3 +1,5 @@
+import { useState } from "react"
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,50 +17,107 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
-export function LoginForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+type Props = React.ComponentProps<"div"> & {
+  onLogin: (email: string, password: string) => Promise<void>
+  onRegister: (email: string, password: string) => Promise<void>
+}
+
+export function LoginForm({ className, onLogin, onRegister, ...props }: Props) {
+  const [mode, setMode] = useState<"login" | "register">("login")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      if (mode === "login") await onLogin(email, password)
+      else await onRegister(email, password)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Authentication failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
+          <CardTitle>{mode === "login" ? "Login to your account" : "Create an account"}</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            {mode === "login"
+              ? "Enter your email and password"
+              : "Sign up with email and password"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
+          <form onSubmit={submit}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="admin@ownnblm.local"
                   required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={busy}
                 />
               </Field>
               <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </a>
-                </div>
-                <Input id="password" type="password" required />
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={busy}
+                />
               </Field>
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <Field>
-                <Button type="submit">Login</Button>
-                <Button variant="outline" type="button">
-                  Login with Google
+                <Button type="submit" className="cursor-pointer" disabled={busy}>
+                  {busy ? "Please wait…" : mode === "login" ? "Login" : "Sign up"}
+                </Button>
+                <Button
+                  variant="outline"
+                  type="button"
+                  className="cursor-pointer"
+                  disabled
+                  title="Google OAuth ships in Phase 4"
+                >
+                  Login with Google (Phase 4)
                 </Button>
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="#">Sign up</a>
+                  {mode === "login" ? (
+                    <>
+                      Don&apos;t have an account?{" "}
+                      <button
+                        type="button"
+                        className="cursor-pointer underline-offset-4 hover:underline"
+                        onClick={() => setMode("register")}
+                      >
+                        Sign up
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        className="cursor-pointer underline-offset-4 hover:underline"
+                        onClick={() => setMode("login")}
+                      >
+                        Login
+                      </button>
+                    </>
+                  )}
                 </FieldDescription>
               </Field>
             </FieldGroup>

@@ -10,49 +10,49 @@ todos:
     status: completed
   - id: storage-auth-stubs
     content: "StorageBackend abstraction (LocalDisk Phase 1, S3Backend Phase 3), dev-mode auth stub (X-Dev-User-Id passthrough in ENVIRONMENT=development), health check GET /health (DB+storage+OpenRouter)"
-    status: in_progress
+    status: completed
   - id: seed-makefile
     content: "app/seed.py (idempotent: default org + admin@ownnblm.local/admin123 + fixtures/sample_research_paper.pdf indexed, verifies OPENROUTER_API_KEY); Makefile targets (dev/seed/test/lint/migrate/health/reset)"
     status: completed
   - id: source-registry-watch
     content: "Source registry (watched folders + manual upload), watchdog file watcher, Huey task queue (SQLite backend Phase 1) ingest jobs, document metadata store, ingest progress SSE events (ingest_progress / ingest_done / ingest_error); resource limits enforced: 50MB/file, 3 concurrent/workspace, 5/min rate"
-    status: pending
+    status: completed
   - id: ingest-pipeline
     content: "Format pipeline: PDF/MD native via PageIndex; DOCX via mammoth; TXT normalization to MD sections; 512-token chunks / 64 overlap; embed via OpenRouter text-embedding-3-small in batches of 32; storage quota checked before every file write"
-    status: pending
+    status: completed
   - id: retrieval-agent
     content: Port agentic RAG loop from demo; corpus tools + scoped session doc filtering; LiteLLM router to OpenRouter
-    status: pending
+    status: completed
   - id: citation-viewer
     content: Structured citation payloads {source_id, page, chunk_id, excerpt}, deep-link viewer route, signed temp download URLs, streaming SSE chat API
-    status: pending
+    status: completed
   - id: web-ui-mvp
     content: Sources panel, corpus chat, markdown/chart rendering, document viewer side panel, session tabs
-    status: pending
+    status: completed
   - id: sessions-sharing
     content: Multi-select corpus → sessions, parallel session chats, notes/highlights/bookmarks, read-only share links (signed JWT public view)
-    status: pending
+    status: completed
   - id: auth-better-auth
     content: "Better Auth: email/password + Google OAuth + magic link; JWT sessions; org_id on login; workspace invite flow"
     status: pending
   - id: stripe-billing
     content: "Stripe: subscription products (Free/Personal/Team/Business) + metered overage add-on; webhook handlers; Customer Portal"
-    status: pending
+    status: completed
   - id: credit-metering
     content: "LLM credit system: Redis counters per workspace, monthly cron reset, LiteLLM usage events → credit deduct + Stripe metered record, upgrade prompt at 80%/100%"
-    status: pending
+    status: completed
   - id: managed-llm-pool
     content: "LiteLLM router: managed OpenRouter pool for ALL tiers (Free/Personal/Team/Enterprise); BYOK only enabled when workspace.tier == 'enterprise' — enforced in router middleware (not just UI); premium model 5x credit cost multiplier; default model openai/gpt-4o-mini"
-    status: pending
+    status: completed
   - id: hybrid-provisioner
     content: "Business tier dedicated container provisioner: Portainer CE API, Compose stack template, Traefik subdomain routing (org-slug.ownNBLM.com)"
     status: pending
   - id: pwa-offline
     content: "PWA: Workbox service worker, offline session browsing, Add to Home Screen manifest, install prompt"
-    status: pending
+    status: completed
   - id: usage-dashboard
     content: "User-facing usage dashboard: queries used/remaining, storage used, plan limits, upgrade CTA"
-    status: pending
+    status: completed
   - id: admin-console
     content: "Phase 4 admin console: member management, per-member storage, API key rotation, billing portal link, org audit log"
     status: pending
@@ -61,13 +61,13 @@ todos:
     status: pending
   - id: throttling-resource-limits
     content: "Enforce all resource constraints: 50MB max file, 10 files/batch, 3 concurrent ingest jobs/workspace, 5 files/min rate limit, 32-chunk embedding batch size, 120s SSE timeout, storage quota check before upload (413 if exceeded), Redis storage cache"
-    status: pending
+    status: completed
   - id: testing-ci
     content: "pytest (backend services + API routes), vitest (frontend), Playwright E2E (5 flows: signup/ingest/chat/citation/share), GitHub Actions CI (lint+test+e2e+build), visual regression screenshots; coverage targets: services 85%, routes 70%"
-    status: pending
+    status: in_progress
   - id: observability
     content: "structlog (JSON prod / colorized dev), prometheus-fastapi-instrumentator /metrics, Sentry opt-in via SENTRY_DSN, X-Request-ID header, per-call LLM logging (workspace_id, model, tokens, latency_ms, credit_cost as Decimal)"
-    status: pending
+    status: completed
   - id: public-api
     content: "Phase 5: versioned public REST API (/api/v1/), API key management, webhook outbound, OpenAPI docs, citation export (Zotero/BibTeX)"
     status: pending

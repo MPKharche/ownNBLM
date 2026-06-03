@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import ReactMarkdown from "react-markdown"
-import { FileUpIcon, MessageSquareIcon, PlusIcon, SparklesIcon } from "lucide-react"
+import { FileUpIcon, MessageSquareIcon, PlusIcon, ShareIcon, SparklesIcon } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import { CitationChips } from "@/components/citation-chips"
 import { SourceExcerptPanel, type Citation } from "@/components/source-excerpt-panel"
-import { api, streamChat, type Session, type Source } from "@/lib/api"
+import { api, createShareLink, streamChat, type Session, type Source } from "@/lib/api"
 import { chatMessageTransition, chatMessageVariants, useMotionSafe } from "@/lib/motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ export function ChatPage() {
   const [input, setInput] = useState("")
   const [streaming, setStreaming] = useState(false)
   const [viewer, setViewer] = useState<Citation | null>(null)
+  const [shareMsg, setShareMsg] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const motionSafe = useMotionSafe()
 
@@ -82,6 +83,19 @@ export function ChatPage() {
     }
   }
 
+  async function shareSession() {
+    if (!activeId || messages.length === 0) return
+    setShareMsg(null)
+    try {
+      const { url } = await createShareLink(activeId)
+      const full = `${window.location.origin}${url}`
+      await navigator.clipboard.writeText(full)
+      setShareMsg("Share link copied to clipboard")
+    } catch (e) {
+      setShareMsg(e instanceof Error ? e.message : "Could not create share link")
+    }
+  }
+
   return (
     <div className="flex h-[calc(100svh-8rem)] min-h-0">
       <aside className="w-48 shrink-0 border-r border-border p-2">
@@ -104,6 +118,20 @@ export function ChatPage() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {activeId && messages.length > 0 && (
+          <div className="flex items-center justify-end gap-2 border-b border-border px-4 py-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              onClick={shareSession}
+            >
+              <ShareIcon className="size-4" /> Share
+            </Button>
+            {shareMsg && <span className="text-xs text-muted-foreground">{shareMsg}</span>}
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {!hasSessions && (
             <div className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-surface/30 p-8 text-center">

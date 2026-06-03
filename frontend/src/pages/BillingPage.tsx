@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { api, type Usage } from "@/lib/api"
+import { api, startCheckout, type Usage } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
 type Plan = { id: string; price: number; queries: number; storage_gb: number }
@@ -8,11 +8,26 @@ type Plan = { id: string; price: number; queries: number; storage_gb: number }
 export function BillingPage() {
   const [plans, setPlans] = useState<Plan[]>([])
   const [usage, setUsage] = useState<Usage | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
 
   useEffect(() => {
     api<{ plans: Plan[] }>("/api/v1/billing/plans").then((r) => setPlans(r.plans))
     api<Usage>("/api/v1/usage/dashboard").then(setUsage)
   }, [])
+
+  async function upgrade(planId: string) {
+    setBusy(planId)
+    setMsg(null)
+    try {
+      const { checkout_url } = await startCheckout(planId)
+      window.location.href = checkout_url
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Upgrade unavailable")
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
@@ -35,6 +50,8 @@ export function BillingPage() {
         </div>
       )}
 
+      {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
+
       <div className="grid gap-4 sm:grid-cols-2">
         {plans.map((p) => (
           <div key={p.id} className="rounded-xl border border-border p-4">
@@ -44,8 +61,15 @@ export function BillingPage() {
               {p.queries} queries · {p.storage_gb} GB
             </p>
             {p.id !== "free" && (
-              <Button type="button" className="mt-3" variant="outline" size="sm" disabled>
-                Upgrade (configure Stripe in .env)
+              <Button
+                type="button"
+                className="mt-3 cursor-pointer"
+                variant="outline"
+                size="sm"
+                disabled={busy === p.id}
+                onClick={() => upgrade(p.id)}
+              >
+                {busy === p.id ? "Redirecting…" : "Upgrade"}
               </Button>
             )}
           </div>

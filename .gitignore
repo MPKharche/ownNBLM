@@ -1,4 +1,5 @@
 .env
+.env.development.local
 *.db
 data/
 node_modules/

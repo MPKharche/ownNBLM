@@ -35,6 +35,33 @@ export async function login(email: string, password: string) {
   return data
 }
 
+export async function register(email: string, password: string, orgName = "My Workspace") {
+  const data = await api<{ access_token: string; user_id: string; org_id: string; email: string }>(
+    "/api/v1/auth/register",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, org_name: orgName }),
+    },
+  )
+  localStorage.setItem("ownnblm_token", data.access_token)
+  return data
+}
+
+export async function createShareLink(sessionId: string) {
+  return api<{ token: string; url: string }>(`/api/v1/sessions/${sessionId}/share`, {
+    method: "POST",
+  })
+}
+
+export async function startCheckout(plan: string) {
+  return api<{ checkout_url: string }>("/api/v1/billing/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  })
+}
+
 export type Source = {
   id: string
   name: string

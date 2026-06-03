@@ -52,8 +52,17 @@ restart-api:
 	-$(PYTHON) scripts/kill_port.py 8000
 	cd $(BACKEND) && $(PYTHON) -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
+dev-local-worker:
+	cd $(BACKEND) && $(PYTHON) -m huey_consumer app.tasks.huey_app.huey -w 2 -k process
+
 dev-local-web:
 	cd $(FRONTEND) && npm run dev
 
 dev-local:
-	@echo "Run in two terminals: make dev-local-api && make dev-local-web"
+	@echo "Run in three terminals:"
+	@echo "  make dev-local-api"
+	@echo "  make dev-local-worker"
+	@echo "  make dev-local-web"
+	@echo "If port 8000 is a zombie on Windows, set frontend/.env.development.local:"
+	@echo "  VITE_DEV_API_PROXY=http://127.0.0.1:8001"
+	@echo "  and start API on 8001 instead."

@@ -52,11 +52,13 @@ docker compose -f docker-compose.prod.yml up --build
 
 Frontend nginx proxies `/api` → API. Use Postgres + Redis from prod compose.
 
-## Verified (last run)
+## Verified (2026-06-03)
 
-- `pytest` — health + usage + **live OpenRouter chat SSE**
+- `pytest` — 7 passed (health, rate limits, usage, share links, **live OpenRouter chat SSE**)
 - `npm run build` — production bundle + PWA service worker
+- UI flows — login/register, corpus upload, SSE chat + citations, share link, billing usage
 - Sample corpus: *Attention Residuals* PDF (42 chunks, embeddings via OpenRouter)
+- Prod stack: `docker compose -f docker-compose.prod.yml up --build`
 
 ## API highlights
 

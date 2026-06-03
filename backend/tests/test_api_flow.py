@@ -43,3 +43,18 @@ def test_create_session_and_chat():
     )
     assert r.status_code == 200
     assert "text/event-stream" in r.headers.get("content-type", "")
+
+
+def test_share_link():
+    r = client.post(
+        "/api/v1/sessions",
+        headers=headers,
+        json={"title": "Share test", "source_ids": []},
+    )
+    sid = r.json()["id"]
+    r = client.post(f"/api/v1/sessions/{sid}/share", headers=headers)
+    assert r.status_code == 200
+    token = r.json()["token"]
+    r = client.get(f"/api/v1/share/{token}")
+    assert r.status_code == 200
+    assert r.json()["session"]["title"] == "Share test"

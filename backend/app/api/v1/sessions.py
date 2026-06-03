@@ -123,8 +123,12 @@ def public_share(token: str, db: DbSession):
     link = db.execute(select(ShareLink).where(ShareLink.token == token)).scalar_one_or_none()
     if link is None:
         raise HTTPException(status_code=404)
-    if link.expires_at and link.expires_at < datetime.now(UTC):
-        raise HTTPException(status_code=410, detail="Share link expired")
+    if link.expires_at:
+        expires = link.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=UTC)
+        if expires < datetime.now(UTC):
+            raise HTTPException(status_code=410, detail="Share link expired")
     session = db.get(Session, link.session_id)
     messages = db.execute(
         select(Message).where(Message.session_id == link.session_id).order_by(Message.created_at)
