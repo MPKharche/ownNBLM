@@ -1,6 +1,6 @@
 # ownNBLM
 
-Multi-tenant SaaS knowledge assistant — document-grounded RAG with citations, sessions, billing, and sharing.
+Self-hosted NotebookLM alternative — multi-tenant SaaS knowledge assistant with document-grounded RAG, citations, sessions, billing, and sharing.
 
 **Plan (source of truth):** [PLAN.md](./PLAN.md) · Cursor: `ownnblm_saas_platform_a0261da2.plan.md`
 
@@ -70,9 +70,26 @@ Frontend nginx proxies `/api` → API. Use Postgres + Redis from prod compose.
 | `GET /health` | DB, storage, OpenRouter, queue |
 | `GET /metrics` | Prometheus |
 
-## Monorepo
+## Monorepo layout
 
-- `backend/` — FastAPI, SQLAlchemy, LiteLLM → OpenRouter
-- `frontend/` — React 19, Vite, shadcn, Framer Motion
-- `../PageIndex` — editable dependency
-- `scripts/sync_env_key.py` — sync API key from sibling projects
+| Path | Purpose |
+|------|---------|
+| `backend/` | FastAPI, SQLAlchemy, LiteLLM → OpenRouter |
+| `frontend/` | React 19, Vite, shadcn, Framer Motion |
+| `../PageIndex` | Editable dependency |
+| `scripts/sync_env_key.py` | Sync API key from sibling projects |
+| `src/` | Legacy frontend prototype (pre-monorepo) |
+
+## Documentation (legacy + design)
+
+Earlier planning docs and the standalone UI prototype remain in the repo:
+
+- [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) — TOC trees, hybrid retrieval, schemas
+- [ARCHITECTURE_COMPARISON.md](./ARCHITECTURE_COMPARISON.md) — vs Page Index + Grimmory
+- [FULL_STACK_SETUP_GUIDE.md](./FULL_STACK_SETUP_GUIDE.md) — deployment guide
+- [FULLSTACK_DEVELOPMENT_PLAN.md](./FULLSTACK_DEVELOPMENT_PLAN.md) — 14-week roadmap
+- [BACKEND_IMPLEMENTATION_PLAN.md](./BACKEND_IMPLEMENTATION_PLAN.md) — backend design notes
+
+## License
+
+MIT — see [LICENSE](./LICENSE) if present.
