@@ -21,15 +21,14 @@ router = APIRouter()
 
 
 class SourceOut(BaseModel):
+    model_config = {"from_attributes": True}
+
     id: str
     name: str
     status: str
     source_type: str
     byte_size: int | None
     error_message: str | None
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("", response_model=list[SourceOut])

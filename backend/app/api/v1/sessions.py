@@ -24,22 +24,20 @@ class SessionCreate(BaseModel):
 
 
 class SessionOut(BaseModel):
+    model_config = {"from_attributes": True}
+
     id: str
     title: str
     source_ids: list[str]
 
-    class Config:
-        from_attributes = True
-
 
 class MessageOut(BaseModel):
+    model_config = {"from_attributes": True}
+
     id: str
     role: str
     content: str
     citations: list | None = None
-
-    class Config:
-        from_attributes = True
 
 
 class NoteCreate(BaseModel):

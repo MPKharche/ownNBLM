@@ -56,7 +56,7 @@ export type Usage = {
   tier: string
 }
 
-export function streamChat(
+export async function streamChat(
   sessionId: string,
   message: string,
   onEvent: (ev: Record<string, unknown>) => void,

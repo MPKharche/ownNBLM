@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
 
 from app.core.deps import DbSession
@@ -8,12 +8,12 @@ router = APIRouter()
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     org_name: str = "My Workspace"
     display_name: str = ""
