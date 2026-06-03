@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ownNBLM — Interactive Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+:root {
+  --bg:       #070A10;
+  --sf:       #0D1219;
+  --sf2:      #121A26;
+  --sf3:      #182030;
+  --bd:       #1C2A3E;
+  --bd2:      #223044;
+  --ac:       #2563EB;
+  --ac-h:     #1D4ED8;
+  --ac-m:     rgba(37,99,235,.14);
+  --mu:       #64748B;
+  --tx:       #E2EAF4;
+  --tx2:      #94A3B8;
+  --tx3:      #5A6882;
+  --gr:       #22C55E;
+  --gr-m:     rgba(34,197,94,.12);
+  --am:       #F59E0B;
+  --am-m:     rgba(245,158,11,.12);
+  --re:       #EF4444;
+  --pu:       #7C3AED;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:13.5px;line-height:1.6;overflow:hidden;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px;}
+::-webkit-scrollbar-thumb:hover{background:var(--mu);}
+
+/* ---- UTILS ---- */
+.serif{font-family:'Crimson Pro',Georgia,serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.screen{display:none;width:100%;height:100%;}
+.screen.active{display:flex;}
+.hidden{display:none!important;}
+
+/* ---- BUTTONS ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 16px;border-radius:8px;border:none;font-family:'Atkinson Hyperlegible',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s ease;white-space:nowrap;}
+.btn-w{width:100%;}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:6px;}
+.btn-xs{padding:4px 9px;font-size:11px;border-radius:5px;}
+.btn-pr{background:var(--ac);color:#fff;}
+.btn-pr:hover{background:var(--ac-h);}
+.btn-gh{background:var(--sf3);color:var(--tx);border:1px solid var(--bd);}
+.btn-gh:hover{background:var(--bd);}
+.btn-ic{width:28px;height:28px;padding:0;background:transparent;border:none;border-radius:6px;color:var(--tx2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .12s,color .12s;}
+.btn-ic:hover{background:var(--sf3);color:var(--tx);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ---- INPUTS ---- */
+.inp{width:100%;padding:9px 12px;background:var(--sf3);border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-family:'Atkinson Hyperlegible',sans-serif;font-size:13.5px;outline:none;transition:border-color .15s;}
+.inp:focus{border-color:var(--ac);}
+.inp::placeholder{color:var(--tx3);}
+
+/* ---- DIVIDER ---- */
+.div-or{display:flex;align-items:center;gap:12px;color:var(--tx3);font-size:12px;margin:18px 0;}
+.div-or::before,.div-or::after{content:'';flex:1;height:1px;background:var(--bd);}
+
+/* ---- BADGES ---- */
+.badge{font-size:10px;padding:1px 7px;border-radius:100px;font-weight:700;letter-spacing:.03em;}
+.b-ac{background:var(--ac-m);color:var(--ac);}
+.b-gr{background:var(--gr-m);color:var(--gr);}
+.b-am{background:var(--am-m);color:var(--am);}
+
+/* ============================================
+   LOGIN SCREEN
+   ============================================ */
+#sc-login{flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+#sc-login::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--bd) 1px,transparent 1px),linear-gradient(90deg,var(--bd) 1px,transparent 1px);background-size:44px 44px;opacity:.22;}
+#sc-login::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(37,99,235,.07) 0%,transparent 70%);pointer-events:none;}
+
+.lc{position:relative;z-index:1;width:360px;background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:34px;box-shadow:0 0 0 1px rgba(255,255,255,.03),0 28px 72px rgba(0,0,0,.45);}
+
+/* ============================================
+   APP LAYOUT
+   ============================================ */
+#sc-app{flex-direction:row;}
+
+/* SIDEBAR */
+.sb{width:236px;min-width:236px;height:100%;background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;}
+.sb-hd{padding:14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.logo{font-family:'Crimson Pro',serif;font-size:19px;font-weight:700;display:flex;align-items:center;gap:8px;letter-spacing:-.01em;}
+.logo-dot{width:8px;height:8px;background:var(--ac);border-radius:50%;box-shadow:0 0 10px rgba(37,99,235,.7);flex-shrink:0;}
+
+.sb-body{flex:1;overflow-y:auto;padding:8px;}
+.sb-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);padding:4px 8px 3px;margin-top:4px;}
+.sb-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background .1s;color:var(--tx2);font-size:12.5px;}
+.sb-row:hover{background:var(--sf3);color:var(--tx);}
+.sb-row.act{background:var(--ac-m);color:var(--tx);}
+.sb-row .lbl{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+
+.st-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.st-ok{background:var(--gr);}
+.st-busy{background:var(--am);animation:stpulse 1.2s infinite;}
+@keyframes stpulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+.sb-ft{border-top:1px solid var(--bd);padding:12px;}
+.cr-wrap{background:var(--sf3);border-radius:4px;height:4px;overflow:hidden;margin:5px 0 3px;}
+.cr-bar{height:100%;border-radius:4px;background:var(--ac);transition:width .4s ease;}
+.cr-warn{background:var(--am);}
+.cr-dang{background:var(--re);}
+
+/* MAIN */
+.main{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+
+/* EMPTY STATE */
+.empty-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px;}
+.drop-z{border:2px dashed var(--bd2);border-radius:16px;padding:52px 70px;text-align:center;cursor:pointer;transition:all .2s;animation:dzpulse 3s ease-in-out infinite;}
+.drop-z:hover{border-color:var(--ac);background:var(--ac-m);animation:none;}
+@keyframes dzpulse{0%,100%{border-color:var(--bd2);}50%{border-color:var(--bd);}  }
+
+/* CHAT */
+.ch-hd{padding:12px 20px;border-bottom:1px solid var(--bd);background:var(--sf);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;}
+.ch-msgs{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:18px;}
+.msg{display:flex;flex-direction:column;animation:msgIn .2s ease-out;}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.msg-u{align-items:flex-end;}
+.msg-a{align-items:flex-start;}
+.bbl{max-width:74%;padding:11px 15px;border-radius:12px;line-height:1.65;}
+.bbl-u{background:var(--ac);color:#fff;border-bottom-right-radius:3px;}
+.bbl-a{background:var(--sf2);border:1px solid var(--bd);border-bottom-left-radius:3px;color:var(--tx);}
+.bbl-a strong{color:var(--tx);}
+
+.cits{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+.cc{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:var(--sf3);border:1px solid var(--bd);border-radius:100px;font-size:11.5px;color:var(--ac);cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace;}
+.cc:hover{background:var(--ac-m);border-color:var(--ac);}
+
+.typing{display:flex;gap:4px;padding:11px 15px;background:var(--sf2);border:1px solid var(--bd);border-radius:12px;border-bottom-left-radius:3px;width:fit-content;}
+.td{width:6px;height:6px;background:var(--mu);border-radius:50%;animation:tdB 1.2s infinite;}
+.td:nth-child(2){animation-delay:.2s;}
+.td:nth-child(3){animation-delay:.4s;}
+@keyframes tdB{0%,100%{transform:translateY(0);opacity:.4;}50%{transform:translateY(-4px);opacity:1;}}
+
+.ch-inp-area{padding:14px 20px;border-top:1px solid var(--bd);background:var(--sf);flex-shrink:0;}
+.ch-inp-box{display:flex;align-items:flex-end;gap:9px;background:var(--sf2);border:1px solid var(--bd2);border-radius:12px;padding:9px 12px;transition:border-color .15s;}
+.ch-inp-box:focus-within{border-color:var(--ac);}
+.ch-inp{flex:1;background:transparent;border:none;outline:none;color:var(--tx);font-family:'Atkinson Hyperlegible',sans-serif;font-size:13.5px;resize:none;min-height:20px;max-height:120px;line-height:1.5;}
+.ch-inp::placeholder{color:var(--tx3);}
+.send-b{width:32px;height:32px;border-radius:8px;background:var(--ac);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,transform .1s;flex-shrink:0;}
+.send-b:hover{background:var(--ac-h);}
+.send-b:active{transform:scale(.9);}
+.send-b:disabled{background:var(--sf3);cursor:not-allowed;}
+
+.suggs{display:flex;gap:7px;flex-wrap:wrap;padding:7px 20px;border-top:1px solid var(--bd);}
+.sugg{padding:4px 11px;background:var(--sf3);border:1px solid var(--bd);border-radius:100px;font-size:12px;color:var(--tx2);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.sugg:hover{background:var(--ac-m);border-color:var(--ac);color:var(--tx);}
+
+/* VIEWER PANEL */
+.vp{width:0;overflow:hidden;height:100%;background:var(--sf);border-left:1px solid var(--bd);transition:width .25s cubic-bezier(.4,0,.2,1);flex-shrink:0;display:flex;flex-direction:column;}
+.vp.open{width:380px;}
+.vp-in{width:380px;min-width:380px;height:100%;display:flex;flex-direction:column;}
+.vp-hd{padding:12px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:9px;flex-shrink:0;}
+.vp-nav{display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bd);flex-shrink:0;}
+.vp-body{flex:1;overflow-y:auto;padding:16px;}
+.pdf-pg{background:#fff;color:#1a1a1a;border-radius:8px;padding:26px;font-family:'Crimson Pro',Georgia,serif;font-size:13.5px;line-height:1.85;box-shadow:0 4px 24px rgba(0,0,0,.35);}
+.hi{background:rgba(37,99,235,.22);border-bottom:2px solid var(--ac);padding:1px 1px;border-radius:2px;}
+
+/* INGEST CARD */
+.ing-card{position:absolute;bottom:72px;right:16px;width:310px;background:var(--sf2);border:1px solid var(--bd);border-radius:12px;padding:16px;box-shadow:0 8px 32px rgba(0,0,0,.35);z-index:100;animation:slideUp .3s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+.prog-wrap{background:var(--sf3);border-radius:100px;height:4px;overflow:hidden;margin:8px 0 5px;}
+.prog-fill{height:100%;background:var(--ac);border-radius:100px;transition:width .5s ease;}
+
+/* MODALS */
+.mbk{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;}
+.mbk.open{display:flex;}
+.mo{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:28px;max-width:90vw;box-shadow:0 28px 72px rgba(0,0,0,.55);animation:moIn .18s ease;}
+@keyframes moIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+
+/* TOAST */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:11px 15px;display:flex;align-items:center;gap:9px;font-size:13px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.35);transform:translateY(70px);opacity:0;transition:all .25s cubic-bezier(.34,1.56,.64,1);}
+#toast.show{transform:translateY(0);opacity:1;}
+
+/* CREDIT BANNER */
+#cr-banner{background:linear-gradient(90deg,rgba(245,158,11,.09),rgba(245,158,11,.04));border-bottom:1px solid rgba(245,158,11,.2);padding:7px 20px;display:none;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--am);flex-shrink:0;}
+#cr-banner.show{display:flex;}
+
+/* TABS */
+.tabs{display:flex;gap:2px;background:var(--sf3);border-radius:7px;padding:3px;}
+.tab{padding:4px 13px;border-radius:5px;font-size:12.5px;cursor:pointer;transition:all .15s;color:var(--tx3);}
+.tab.act{background:var(--sf);color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.2);}
+
+/* SCOPE PILL */
+.scpill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--sf3);border:1px solid var(--bd);border-radius:100px;font-size:11px;color:var(--tx3);}
+
+/* TIER CARD */
+.tier-c{background:var(--sf2);border:1px solid var(--bd);border-radius:12px;padding:16px;flex:1;}
+.tier-c.pop{border-color:var(--ac);background:rgba(37,99,235,.06);}
+
+/* NOTES */
+.note-c{background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:14px;}
+
+/* SKELETON */
+.sk{background:linear-gradient(90deg,var(--sf3) 25%,var(--bd) 50%,var(--sf3) 75%);background-size:200% 100%;animation:sk 1.5s infinite;border-radius:6px;}
+@keyframes sk{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+</style>
+</head>
+<body>
+
+<!-- ▸ PROTOTYPE BADGE ◂ -->
+<div id="proto-b" style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:var(--pu);color:#fff;font-size:10.5px;padding:3px 22px 4px;border-radius:0 0 10px 10px;font-weight:700;letter-spacing:.07em;cursor:pointer;" onclick="this.style.display='none'">
+  PROTOTYPE &nbsp;·&nbsp; Click to dismiss
+</div>
+
+<!-- ▸ DEMO GUIDE ◂ -->
+<div id="guide" style="position:fixed;left:14px;bottom:14px;z-index:300;width:214px;">
+  <div style="background:var(--sf2);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.3);">
+    <div style="padding:10px 13px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:12px;font-weight:700;">🗺 Demo Guide</span>
+      <span style="font-size:10.5px;color:var(--tx3);cursor:pointer;" onclick="document.getElementById('guide').style.display='none'">hide</span>
+    </div>
+    <div id="gsteps" style="padding:10px 13px;font-size:12px;color:var(--tx2);line-height:1.8;"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN: LOGIN
+     ============================================================ -->
+<div id="sc-login" class="screen active">
+  <div style="position:relative;z-index:1;text-align:center;margin-bottom:28px;">
+    <div class="serif" style="font-size:44px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;justify-content:center;gap:10px;">
+      <span class="logo-dot" style="width:11px;height:11px;"></span>ownNBLM
+    </div>
+    <div style="color:var(--tx3);font-size:14px;margin-top:5px;">Your documents. Infinite understanding.</div>
+  </div>
+
+  <div class="lc">
+    <div class="serif" style="font-size:23px;font-weight:600;margin-bottom:4px;">Welcome back</div>
+    <div style="color:var(--tx3);font-size:12.5px;margin-bottom:22px;">Sign in to your workspace</div>
+    <div style="display:flex;flex-direction:column;gap:11px;">
+      <input class="inp" type="email" placeholder="you@example.com" value="admin@ownnblm.local"/>
+      <input class="inp" type="password" placeholder="Password" value="admin123"/>
+      <button class="btn btn-pr btn-w" style="margin-top:2px;" onclick="doLogin()">
+        <i data-lucide="log-in" width="14" height="14"></i> Sign in
+      </button>
+    </div>
+    <div class="div-or">or continue with</div>
+    <button class="btn btn-gh btn-w" onclick="doLogin()">
+      <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+    <div style="margin-top:18px;text-align:center;font-size:12px;color:var(--tx3);">
+      No account? <span style="color:var(--ac);cursor:pointer;" onclick="doLogin()">Start free →</span>
+    </div>
+  </div>
+
+  <div style="position:relative;z-index:1;margin-top:24px;display:flex;gap:22px;">
+    <span style="font-size:11.5px;color:var(--tx3);">Free · 30 queries/mo</span>
+    <span style="font-size:11.5px;color:var(--tx3);">No card required</span>
+    <span style="font-size:11.5px;color:var(--tx3);">Privacy-first</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN: MAIN APP
+     ============================================================ -->
+<div id="sc-app" class="screen" style="flex-direction:row;">
+
+  <!-- SIDEBAR -->
+  <div class="sb">
+    <div class="sb-hd">
+      <div class="logo"><span class="logo-dot"></span>ownNBLM</div>
+      <button class="btn btn-pr btn-sm" onclick="onNewSession()" style="font-size:11px;padding:5px 10px;">+ Session</button>
+    </div>
+    <div class="sb-body">
+      <div style="margin-bottom:6px;">
+        <div class="sb-row" style="background:var(--sf3);">
+          <i data-lucide="layers" width="13" height="13" style="color:var(--ac);flex-shrink:0;"></i>
+          <span class="lbl" style="font-size:12.5px;color:var(--tx2);">My Research</span>
+          <i data-lucide="chevron-down" width="12" height="12" style="color:var(--tx3);"></i>
+        </div>
+      </div>
+      <div class="sb-lbl">Sources</div>
+      <div id="src-list"><div id="src-empty" style="padding:10px 8px;"><div style="text-align:center;color:var(--tx3);font-size:12px;padding:10px;border:1px dashed var(--bd);border-radius:8px;">No sources yet</div></div></div>
+      <div class="sb-row" onclick="onAddSource()" style="color:var(--tx3);font-size:12.5px;margin-top:2px;">
+        <i data-lucide="plus-circle" width="13" height="13"></i><span>Add source</span>
+      </div>
+      <div style="height:1px;background:var(--bd);margin:10px 0;"></div>
+      <div class="sb-lbl">Sessions</div>
+      <div id="sess-list"><div id="sess-empty" style="padding:10px 8px;"><div style="text-align:center;color:var(--tx3);font-size:12px;padding:10px;border:1px dashed var(--bd);border-radius:8px;">No sessions yet</div></div></div>
+    </div>
+    <div class="sb-ft">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--ac-m);border:1px solid var(--ac);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ac);flex-shrink:0;">A</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">admin</div>
+          <div style="font-size:10.5px;color:var(--tx3);">Free Plan</div>
+        </div>
+        <button class="btn-ic" onclick="openUpgrade()"><i data-lucide="settings" width="13" height="13"></i></button>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+        <span style="color:var(--tx3);">Queries this month</span>
+        <span style="color:var(--tx2);" id="cr-lbl">0 / 30</span>
+      </div>
+      <div class="cr-wrap"><div class="cr-bar" id="cr-bar" style="width:0%;"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10.5px;">
+        <span style="color:var(--tx3);">Resets monthly</span>
+        <span style="color:var(--ac);cursor:pointer;" onclick="openUpgrade()">Upgrade →</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <!-- Credit banner -->
+    <div id="cr-banner"><div style="display:flex;align-items:center;gap:7px;"><i data-lucide="alert-triangle" width="13" height="13"></i><span id="cr-ban-txt"></span></div><span style="cursor:pointer;font-weight:700;text-decoration:underline;" onclick="openUpgrade()">Upgrade →</span></div>
+
+    <!-- STATE: EMPTY -->
+    <div id="st-empty" class="empty-wrap">
+      <div style="max-width:460px;width:100%;text-align:center;">
+        <div style="width:52px;height:52px;background:var(--sf3);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
+          <i data-lucide="library" width="22" height="22" style="color:var(--ac);"></i>
+        </div>
+        <div class="serif" style="font-size:26px;font-weight:600;margin-bottom:8px;">Start with your documents</div>
+        <div style="color:var(--tx3);font-size:13.5px;margin-bottom:28px;line-height:1.75;">Upload PDFs, Markdown, or text files.<br>ownNBLM indexes them so you can have intelligent, cited conversations.</div>
+        <div class="drop-z" onclick="onAddSource()" id="dz">
+          <i data-lucide="upload-cloud" width="34" height="34" style="color:var(--ac);display:block;margin:0 auto 12px;"></i>
+          <div style="font-size:16px;font-weight:700;margin-bottom:5px;">Drop files here</div>
+          <div style="color:var(--tx3);font-size:12.5px;">PDF, DOCX, Markdown, TXT &nbsp;·&nbsp; Max 50 MB each</div>
+          <div style="margin-top:14px;"><button class="btn btn-pr btn-sm" style="display:inline-flex;">Browse files</button></div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:18px;margin-top:16px;font-size:12px;color:var(--tx3);">
+          <span>PDF</span><span>Markdown</span><span>DOCX</span><span>TXT</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE: CREATE SESSION (sources ready) -->
+    <div id="st-sess" style="display:none;flex:1;align-items:center;justify-content:center;padding:32px;">
+      <div style="max-width:430px;width:100%;text-align:center;">
+        <div style="width:52px;height:52px;background:var(--gr-m);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
+          <i data-lucide="check-circle" width="22" height="22" style="color:var(--gr);"></i>
+        </div>
+        <div class="serif" style="font-size:24px;font-weight:600;margin-bottom:6px;">Documents indexed</div>
+        <div style="color:var(--tx3);font-size:13px;margin-bottom:24px;">Choose which sources to include in your session, then start chatting.</div>
+        <div style="background:var(--sf2);border:1px solid var(--bd);border-radius:12px;padding:18px;text-align:left;margin-bottom:16px;">
+          <div style="font-size:12.5px;font-weight:700;margin-bottom:10px;">Sources in scope:</div>
+          <div id="src-cbs" style="display:flex;flex-direction:column;gap:7px;"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <input class="inp" id="sess-name" value="Research Session 1" style="flex:1;"/>
+        </div>
+        <button class="btn btn-pr btn-w" onclick="createSession()" style="font-size:14px;padding:11px;">
+          <i data-lucide="message-square" width="15" height="15"></i> Start Session
+        </button>
+      </div>
+    </div>
+
+    <!-- STATE: CHAT -->
+    <div id="st-chat" style="display:none;flex:1;flex-direction:column;height:100%;min-height:0;">
+      <!-- Chat header -->
+      <div class="ch-hd">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+            <span class="serif" style="font-size:17px;font-weight:600;" id="sess-title">Research Session 1</span>
+            <span class="badge b-ac">Active</span>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;" id="sc-pills"></div>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <div class="tabs">
+            <div class="tab act" onclick="toTab('chat',this)">Chat</div>
+            <div class="tab" onclick="toTab('notes',this)">Notes</div>
+          </div>
+          <button class="btn-ic" onclick="openShare()" title="Share"><i data-lucide="share-2" width="14" height="14"></i></button>
+          <button class="btn-ic" title="Settings"><i data-lucide="settings-2" width="14" height="14"></i></button>
+        </div>
+      </div>
+
+      <!-- CHAT TAB -->
+      <div id="tab-chat" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+        <div class="ch-msgs" id="ch-msgs">
+          <div style="text-align:center;padding:16px 0 6px;">
+            <div style="font-size:13px;color:var(--tx3);">Session with <strong style="color:var(--tx2);" id="sc-ct">3</strong> sources in scope</div>
+            <div style="font-size:12px;color:var(--tx3);margin-top:3px;">Ask anything — answers include source citations you can verify.</div>
+          </div>
+        </div>
+        <div class="suggs" id="suggs">
+          <span style="font-size:11px;color:var(--tx3);align-self:center;flex-shrink:0;">Try:</span>
+          <div class="sugg" onclick="useSugg(this)">What is the main contribution?</div>
+          <div class="sugg" onclick="useSugg(this)">What datasets were used?</div>
+          <div class="sugg" onclick="useSugg(this)">Key limitations?</div>
+          <div class="sugg" onclick="useSugg(this)">Summarize the methodology</div>
+        </div>
+        <div class="ch-inp-area">
+          <div class="ch-inp-box">
+            <textarea class="ch-inp" id="ch-inp" rows="1" placeholder="Ask something about your documents…" onkeydown="onKey(event)" oninput="autoH(this)"></textarea>
+            <button class="send-b" id="send-b" onclick="sendMsg()"><i data-lucide="send" width="14" height="14" style="color:#fff;"></i></button>
+          </div>
+          <div style="text-align:center;font-size:11px;color:var(--tx3);margin-top:5px;">
+            Powered by OpenRouter &nbsp;·&nbsp; <span style="color:var(--ac);">gpt-4o-mini</span> &nbsp;·&nbsp; Streaming
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTES TAB -->
+      <div id="tab-notes" style="display:none;flex:1;flex-direction:column;min-height:0;">
+        <div style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;">
+          <div class="note-c">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-size:11px;color:var(--tx3);">Jun 3, 2026 · 6:14 PM</span>
+              <i data-lucide="bookmark" width="12" height="12" style="color:var(--ac);"></i>
+            </div>
+            <div style="font-size:13.5px;">The multi-head attention mechanism is key — allows attending to different subspaces simultaneously. Compare with existing BERT embeddings.</div>
+          </div>
+          <div class="note-c" style="border-left:2px solid var(--ac);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-size:11px;color:var(--tx3);">Jun 3, 2026 · 5:52 PM</span>
+              <span class="badge b-ac">Highlighted</span>
+            </div>
+            <div style="font-size:13px;color:var(--tx2);font-style:italic;margin-bottom:5px;">"We propose a new simple network architecture, the Transformer, based solely on attention mechanisms…"</div>
+            <div style="font-size:11.5px;color:var(--tx3);">— Attention Is All You Need, p.2</div>
+          </div>
+          <div class="note-c">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-size:11px;color:var(--tx3);">Jun 3, 2026 · 5:38 PM</span>
+            </div>
+            <div style="font-size:13.5px;">TODO: check if quadratic complexity issue is addressed in the 2024 follow-up papers in QASPER dataset.</div>
+          </div>
+        </div>
+        <div style="padding:14px;border-top:1px solid var(--bd);display:flex;gap:9px;">
+          <input class="inp" placeholder="Add a note…" style="flex:1;"/>
+          <button class="btn btn-pr btn-sm">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INGEST CARD (floating) -->
+    <div class="ing-card" id="ing-card" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:700;">Indexing documents</span>
+        <span id="ing-pct" class="badge b-am">0%</span>
+      </div>
+      <div id="ing-name" class="mono" style="font-size:11.5px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px;"></div>
+      <div class="prog-wrap"><div class="prog-fill" id="ing-bar" style="width:0%;"></div></div>
+      <div id="ing-step" style="font-size:11.5px;color:var(--tx3);">Starting…</div>
+      <div id="ing-queue" style="font-size:11px;color:var(--tx3);margin-top:4px;"></div>
+    </div>
+  </div><!-- /main -->
+
+  <!-- DOCUMENT VIEWER PANEL -->
+  <div class="vp" id="vp">
+    <div class="vp-in">
+      <div class="vp-hd">
+        <button class="btn-ic" onclick="closeViewer()"><i data-lucide="panel-right-close" width="14" height="14"></i></button>
+        <div style="flex:1;min-width:0;">
+          <div id="vp-src" style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+          <div id="vp-pg" style="font-size:11px;color:var(--tx3);"></div>
+        </div>
+        <button class="btn-ic"><i data-lucide="external-link" width="13" height="13"></i></button>
+      </div>
+      <div class="vp-nav">
+        <button class="btn-ic"><i data-lucide="chevron-left" width="13" height="13"></i></button>
+        <span id="vp-nav-lbl" class="mono" style="font-size:12px;color:var(--tx2);">Page 2 of 18</span>
+        <button class="btn-ic"><i data-lucide="chevron-right" width="13" height="13"></i></button>
+      </div>
+      <div class="vp-body">
+        <div class="pdf-pg" id="vp-pdf"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /sc-app -->
+
+
+<!-- ====================================================
+     MODAL: SHARE
+     ==================================================== -->
+<div class="mbk" id="mo-share">
+  <div class="mo" style="width:460px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
+      <div><div class="serif" style="font-size:22px;font-weight:600;">Share this session</div><div style="font-size:12.5px;color:var(--tx3);margin-top:3px;">Anyone with the link can view — no login required.</div></div>
+      <button class="btn-ic" onclick="closeShare()"><i data-lucide="x" width="15" height="15"></i></button>
+    </div>
+    <div style="background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+      <span class="mono" style="flex:1;font-size:11.5px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">https://ownnblm.app/s/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…</span>
+      <button class="btn btn-pr btn-xs" onclick="doCopy()">Copy</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:18px;">
+      <div style="flex:1;padding:12px;background:var(--sf2);border:1px solid var(--ac);border-radius:9px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:3px;">Read-only <span class="badge b-ac" style="margin-left:4px;">Selected</span></div>
+        <div style="font-size:11px;color:var(--tx3);">Viewers read answers and citations. Cannot send messages.</div>
+      </div>
+      <div style="flex:1;padding:12px;background:var(--sf3);border:1px solid var(--bd);border-radius:9px;opacity:.5;cursor:not-allowed;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:3px;">Editable <span class="badge b-am" style="margin-left:4px;">Team</span></div>
+        <div style="font-size:11px;color:var(--tx3);">Teammates can also send messages.</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-gh btn-sm" onclick="closeShare()">Cancel</button>
+      <button class="btn btn-pr btn-sm" onclick="doCopy()"><i data-lucide="link" width="12" height="12"></i> Copy link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================
+     MODAL: UPGRADE
+     ==================================================== -->
+<div class="mbk" id="mo-up">
+  <div class="mo" style="width:580px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;">
+      <div><div class="serif" style="font-size:24px;font-weight:600;">Upgrade your plan</div><div style="font-size:13px;color:var(--tx3);margin-top:3px;">More queries, more storage, team features.</div></div>
+      <button class="btn-ic" onclick="closeUpgrade()"><i data-lucide="x" width="15" height="15"></i></button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;">
+      <div class="tier-c">
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px;">Personal</div>
+        <div class="serif" style="font-size:28px;font-weight:700;margin:7px 0;">$12<span style="font-size:14px;color:var(--tx3);font-family:'Atkinson Hyperlegible',sans-serif;font-weight:400;">/mo</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px;font-size:12px;color:var(--tx2);">
+          <div>✓ 500 queries/mo</div><div>✓ 10 GB storage</div><div>✓ Unlimited sessions</div><div>✓ Overage credits</div>
+        </div>
+        <button class="btn btn-gh btn-sm btn-w" onclick="closeUpgrade()">Select</button>
+      </div>
+      <div class="tier-c pop">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span style="font-size:14px;font-weight:700;">Team</span><span class="badge b-ac">Popular</span></div>
+        <div class="serif" style="font-size:28px;font-weight:700;margin:7px 0;">$29<span style="font-size:14px;color:var(--tx3);font-family:'Atkinson Hyperlegible',sans-serif;font-weight:400;">/mo</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px;font-size:12px;color:var(--tx2);">
+          <div>✓ 2 000 pooled queries</div><div>✓ 50 GB pooled</div><div>✓ Up to 5 members</div><div>✓ Shared workspaces</div><div>✓ Share links</div>
+        </div>
+        <button class="btn btn-pr btn-sm btn-w" onclick="closeUpgrade()">Select</button>
+      </div>
+      <div class="tier-c">
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px;">Business</div>
+        <div class="serif" style="font-size:28px;font-weight:700;margin:7px 0;">$79<span style="font-size:14px;color:var(--tx3);font-family:'Atkinson Hyperlegible',sans-serif;font-weight:400;">/mo</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:14px;font-size:12px;color:var(--tx2);">
+          <div>✓ 10 000 queries</div><div>✓ 200 GB</div><div>✓ Up to 20 members</div><div>✓ Dedicated container</div><div>✓ BYO API key</div><div>✓ Admin console</div>
+        </div>
+        <button class="btn btn-gh btn-sm btn-w" onclick="closeUpgrade()">Contact sales</button>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:11.5px;color:var(--tx3);">Overage credits $0.99 / 500 queries &nbsp;·&nbsp; Monthly or annual &nbsp;·&nbsp; Cancel anytime</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+  <i data-lucide="check-circle" width="14" height="14" style="color:var(--gr);flex-shrink:0;"></i>
+  <span id="toast-msg">Done!</span>
+</div>
+
+
+<script>
+// ================================================
+// STATE
+// ================================================
+const S = {
+  appState: 'empty',   // empty | ingesting | sources-ready | chat
+  sources: [],
+  sessions: [],
+  activeSession: null,
+  msgs: [],
+  credits: 0,
+  limit: 30,
+  sending: false,
+  respIdx: 0,
+};
+
+// ================================================
+// FAKE DATA
+// ================================================
+const SOURCES = [
+  { id:1, name:'Attention Is All You Need.pdf',       chunks:42, pages:18 },
+  { id:2, name:'QASPER Benchmark Dataset.pdf',        chunks:28, pages:12 },
+  { id:3, name:'Survey of Long-Context LLMs.pdf',     chunks:51, pages:24 },
+];
+
+const RESPONSES = [
+  {
+    q: 'What is the main contribution',
+    a: 'The primary contribution is the **Transformer architecture** — a model relying entirely on attention mechanisms, dispensing with recurrence and convolutions.\n\nKey innovations:\n• **Multi-Head Attention** — attends to multiple representation subspaces simultaneously\n• **Positional Encoding** — injects sequence order without recurrence\n• **Scaled Dot-Product Attention** — computes compatibility across all positions in parallel',
+    cits:[
+      { src:'Attention Is All You Need.pdf', pg:2, txt:'We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.' },
+      { src:'Attention Is All You Need.pdf', pg:5, txt:'Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions.' },
+    ]
+  },
+  {
+    q: 'What datasets were used',
+    a: 'The Transformer was evaluated on two standard benchmarks:\n\n• **WMT 2014 English-German** — 4.5 million sentence pairs, byte-pair encoding\n• **WMT 2014 English-French** — 36 million sentence pairs\n\nIt achieved state-of-the-art BLEU scores on both, while training significantly faster than prior architectures.',
+    cits:[
+      { src:'Attention Is All You Need.pdf', pg:7, txt:'We trained on the standard WMT 2014 English-German dataset consisting of about 4.5 million sentence pairs.' },
+      { src:'QASPER Benchmark Dataset.pdf', pg:1, txt:'QASPER is a dataset for question answering on scientific research papers, containing 5,049 questions over 1,585 NLP papers.' },
+    ]
+  },
+  {
+    q: 'limitations',
+    a: 'The paper and survey literature identify several important limitations:\n\n1. **Quadratic complexity** — self-attention scales O(n²) with sequence length, costly for long documents\n2. **Fixed context window** — standard Transformers cannot process documents beyond ~8 K tokens without chunking\n3. **Computational cost** — training large models demands significant GPU resources\n\nThese are primary motivations for sparse attention and linear-attention research.',
+    cits:[
+      { src:'Survey of Long-Context LLMs.pdf', pg:3, txt:'The quadratic complexity of self-attention presents a fundamental challenge for long-document processing, limiting standard Transformer models to sequences of approximately 512 to 4096 tokens.' },
+      { src:'Attention Is All You Need.pdf', pg:14, txt:'For tasks involving very long sequences, one could restrict attention to only a neighborhood of size r in the input sequence centered around the respective output position.' },
+    ]
+  },
+  {
+    q: 'methodology',
+    a: 'The methodology follows an **encoder-decoder architecture** with stacked self-attention layers:\n\n**Encoder**: 6 identical layers, each with two sub-layers — multi-head self-attention and position-wise fully-connected network, with residual connections + layer norm.\n\n**Decoder**: 6 layers plus a cross-attention sub-layer attending to encoder output. Masking ensures auto-regressive generation.\n\n**Training**: Adam optimizer, custom LR schedule (warmup + decay), label smoothing ε = 0.1.',
+    cits:[
+      { src:'Attention Is All You Need.pdf', pg:3, txt:'The encoder maps an input sequence of symbol representations to a sequence of continuous representations. Given z, the decoder then generates an output sequence of symbols one element at a time.' },
+      { src:'Attention Is All You Need.pdf', pg:4, txt:'We employ a residual connection around each of the two sub-layers, followed by layer normalization.' },
+    ]
+  }
+];
+
+const PDF = {
+  'Attention Is All You Need.pdf': {
+    2: `<p style="font-size:11.5px;color:#888;margin-bottom:14px;font-family:monospace;">Page 2 of 18 &nbsp;—&nbsp; Attention Is All You Need (Vaswani et al., 2017)</p><h3 style="font-size:17px;font-weight:700;margin-bottom:10px;">2. Background</h3><p style="margin-bottom:10px;">The goal of reducing sequential computation also forms the foundation of the Extended Neural GPU, ByteNet and ConvS2S, all of which use convolutional neural networks as basic building block, computing hidden representations in parallel for all input and output positions.</p><p style="margin-bottom:10px;"><span class="hi">We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.</span> In two machine translation tasks, these models perform better and are more parallelizable while requiring significantly less time to train.</p><p>Self-attention, sometimes called intra-attention is an attention mechanism relating different positions of a single sequence in order to compute a representation of the sequence.</p>`,
+    5: `<p style="font-size:11.5px;color:#888;margin-bottom:14px;font-family:monospace;">Page 5 of 18</p><h3 style="font-size:17px;font-weight:700;margin-bottom:10px;">3.2 Multi-Head Attention</h3><p style="margin-bottom:10px;">Instead of performing a single attention function with d_model-dimensional keys, values and queries, we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections.</p><p style="margin-bottom:10px;"><span class="hi">Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions. With a single attention head, averaging inhibits this.</span></p><p>MultiHead(Q,K,V) = Concat(head₁, …, headₕ)W<sup>O</sup></p>`,
+    7: `<p style="font-size:11.5px;color:#888;margin-bottom:14px;font-family:monospace;">Page 7 of 18</p><h3 style="font-size:17px;font-weight:700;margin-bottom:10px;">6. Training Data and Batching</h3><p style="margin-bottom:10px;"><span class="hi">We trained on the standard WMT 2014 English-German dataset consisting of about 4.5 million sentence pairs.</span> Sentences were encoded using byte-pair encoding, which has a shared source-target vocabulary of about 37 000 tokens.</p><p>For English-French, we used the significantly larger WMT 2014 English-French dataset consisting of 36M sentences.</p>`,
+    14: `<p style="font-size:11.5px;color:#888;margin-bottom:14px;font-family:monospace;">Page 14 of 18</p><h3 style="font-size:17px;font-weight:700;margin-bottom:10px;">7. Conclusion</h3><p style="margin-bottom:10px;"><span class="hi">For tasks involving very long sequences, one could restrict attention to only a neighborhood of size r in the input sequence centered around the respective output position.</span> This would reduce the maximum path length to O(n/r) and allow more efficient training on long documents.</p>`,
+  },
+  'QASPER Benchmark Dataset.pdf': {
+    1: `<p style="font-size:11.5px;color:#888;margin-bottom:14px;font-family:monospace;">Page 1 of 12</p><h2 style="font-size:19px;font-weight:700;margin-bottom:10px;">QASPER: A Dataset for Question Answering<br>on Scientific Research Papers</h2><p style="margin-bottom:10px;"><span class="hi">QASPER is a dataset for question answering on scientific research papers, containing 5,049 questions over 1,585 NLP papers.</span> Questions were written by NLP practitioners who read only the paper title and abstract, while answers were provided by annotators with full paper access.</p>`,
+  },
+  'Survey of Long-Context LLMs.pdf': {
+    3: `<p style="font-size:11.5px;color:#888;margin-bottom:14px;font-family:monospace;">Page 3 of 24</p><h3 style="font-size:17px;font-weight:700;margin-bottom:10px;">2. Challenges of Long-Context Processing</h3><p style="margin-bottom:10px;"><span class="hi">The quadratic complexity of self-attention presents a fundamental challenge for long-document processing, limiting standard Transformer models to sequences of approximately 512 to 4096 tokens.</span></p><p>Recent approaches such as sparse attention, linear attention, and retrieval-augmented generation have been proposed to address this limitation at varying computational costs and quality trade-offs.</p>`,
+  }
+};
+
+// ================================================
+// NAVIGATION & GUIDE
+// ================================================
+const GUIDE = [
+  '1. Click Sign in to enter the app →',
+  '2. Click "Add source" or the drop zone →',
+  '3. Watch ingest progress — then "Start Session" →',
+  '4. Type a question or click a suggestion chip →',
+  '5. Click a citation chip [1] to view the source →',
+  '6. Try Share, Notes tab, or Upgrade →',
+];
+let gStep = 0;
+
+function setGuide(n) {
+  gStep = n;
+  const el = document.getElementById('gsteps');
+  el.innerHTML = GUIDE.map((s, i) => `<div style="opacity:${i===n?1:.35};font-weight:${i===n?700:400};color:${i===n?'var(--tx)':'var(--tx3)'};padding:1px 0;">${s}</div>`).join('');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ================================================
+// LOGIN
+// ================================================
+function doLogin() {
+  showScreen('sc-app');
+  setGuide(1);
+  setCredits(0);
+  setTimeout(() => lucide.createIcons(), 80);
+}
+
+// ================================================
+// SOURCES & INGEST
+// ================================================
+function onAddSource() {
+  if (S.appState !== 'empty') return;
+  beginIngest();
+}
+
+let ingestIdx = 0;
+
+function beginIngest() {
+  S.appState = 'ingesting';
+  document.getElementById('st-empty').style.display = 'none';
+  document.getElementById('ing-card').style.display = 'block';
+  setGuide(2);
+  ingestIdx = 0;
+  runIngestStep();
+}
+
+function runIngestStep() {
+  if (ingestIdx >= SOURCES.length) { finishIngest(); return; }
+  const src = SOURCES[ingestIdx];
+  const steps = [
+    { p:8,  s:'Reading file…' },
+    { p:22, s:'Parsing document…' },
+    { p:48, s:'Chunking text…' },
+    { p:72, s:'Generating embeddings…' },
+    { p:90, s:'Storing index…' },
+    { p:100, s:'Done ✓' },
+  ];
+  document.getElementById('ing-name').textContent = src.name;
+  document.getElementById('ing-bar').style.width = '0%';
+  document.getElementById('ing-pct').textContent = '0%';
+  document.getElementById('ing-pct').className = 'badge b-am';
+  const remaining = SOURCES.length - ingestIdx - 1;
+  document.getElementById('ing-queue').textContent = remaining > 0 ? `${remaining} file${remaining>1?'s':''} queued` : '';
+
+  let si = 0;
+  const iv = setInterval(() => {
+    if (si >= steps.length) {
+      clearInterval(iv);
+      S.sources.push(src);
+      renderSrcList();
+      ingestIdx++;
+      setTimeout(() => runIngestStep(), 380);
+      return;
+    }
+    const step = steps[si];
+    document.getElementById('ing-bar').style.width = step.p + '%';
+    document.getElementById('ing-pct').textContent = step.p + '%';
+    if (step.p === 100) { document.getElementById('ing-pct').className = 'badge b-gr'; }
+    document.getElementById('ing-step').textContent = step.s;
+    si++;
+  }, 300);
+}
+
+function finishIngest() {
+  document.getElementById('ing-card').style.display = 'none';
+  S.appState = 'sources-ready';
+  showCreateSession();
+  setGuide(2);
+}
+
+function renderSrcList() {
+  const list = document.getElementById('src-list');
+  const empty = document.getElementById('src-empty');
+  if (empty) empty.style.display = 'none';
+  list.querySelectorAll('.src-item').forEach(e => e.remove());
+  S.sources.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'sb-row src-item';
+    d.innerHTML = `<i data-lucide="file-text" width="12" height="12" style="color:var(--tx3);flex-shrink:0;"></i><span class="lbl" style="font-size:12px;">${s.name.replace('.pdf','')}</span><span class="st-dot st-ok"></span>`;
+    list.appendChild(d);
+    lucide.createIcons({ els:[d] });
+  });
+}
+
+// ================================================
+// SESSION CREATION
+// ================================================
+function showCreateSession() {
+  const el = document.getElementById('st-sess');
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  el.style.alignItems = 'center';
+  el.style.justifyContent = 'center';
+  const cbs = document.getElementById('src-cbs');
+  cbs.innerHTML = '';
+  S.sources.forEach((s, i) => {
+    cbs.innerHTML += `<label style="display:flex;align-items:center;gap:9px;cursor:pointer;padding:5px 0;">
+      <input type="checkbox" checked id="cb${i}" style="accent-color:var(--ac);width:14px;height:14px;">
+      <span style="font-size:13px;">${s.name}</span>
+      <span class="badge b-gr" style="margin-left:auto;">${s.chunks} chunks</span>
+    </label>`;
+  });
+}
+
+function createSession() {
+  const name = document.getElementById('sess-name').value || 'Research Session 1';
+  const picked = S.sources.filter((_, i) => document.getElementById('cb'+i)?.checked);
+  const sess = { id: Date.now(), name, sources: picked };
+  S.sessions.push(sess);
+  S.activeSession = sess;
+  S.appState = 'chat';
+
+  document.getElementById('st-sess').style.display = 'none';
+  const chat = document.getElementById('st-chat');
+  chat.style.display = 'flex';
+
+  document.getElementById('sess-title').textContent = name;
+  document.getElementById('sc-ct').textContent = picked.length;
+
+  // Scope pills
+  const pills = document.getElementById('sc-pills');
+  pills.innerHTML = '';
+  picked.slice(0, 3).forEach(s => {
+    const p = document.createElement('span');
+    p.className = 'scpill';
+    p.innerHTML = `<i data-lucide="file-text" width="10" height="10"></i> ${s.name.replace('.pdf','')}`;
+    pills.appendChild(p);
+    lucide.createIcons({ els:[p] });
+  });
+
+  renderSessList();
+  setGuide(3);
+  setCredits(4); // demo: show 4/30 used after starting
+}
+
+function renderSessList() {
+  const list = document.getElementById('sess-list');
+  const empty = document.getElementById('sess-empty');
+  if (empty) empty.style.display = 'none';
+  list.querySelectorAll('.si').forEach(e => e.remove());
+  S.sessions.forEach(sess => {
+    const d = document.createElement('div');
+    d.className = `sb-row si ${S.activeSession?.id === sess.id ? 'act' : ''}`;
+    d.innerHTML = `<i data-lucide="message-square" width="12" height="12" style="color:var(--ac);flex-shrink:0;"></i><span class="lbl" style="font-size:12px;">${sess.name}</span>`;
+    list.appendChild(d);
+    lucide.createIcons({ els:[d] });
+  });
+}
+
+function onNewSession() {
+  if (S.appState === 'chat') {
+    document.getElementById('st-chat').style.display = 'none';
+    showCreateSession();
+  } else if (S.appState === 'sources-ready') {
+    showCreateSession();
+  } else {
+    showToast('Add documents first.');
+  }
+}
+
+// ================================================
+// CHAT
+// ================================================
+function onKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+function autoH(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+function useSugg(el) { document.getElementById('ch-inp').value = el.textContent.trim(); sendMsg(); }
+
+function sendMsg() {
+  if (S.sending) return;
+  const inp = document.getElementById('ch-inp');
+  const txt = inp.value.trim();
+  if (!txt) return;
+
+  document.getElementById('suggs').style.display = 'none';
+  inp.value = ''; inp.style.height = 'auto';
+  S.sending = true;
+  document.getElementById('send-b').disabled = true;
+
+  addBubble('user', txt);
+  const typEl = addTyping();
+
+  // Find response
+  const resp = RESPONSES.find(r => txt.toLowerCase().includes(r.q.toLowerCase())) || RESPONSES[S.respIdx % RESPONSES.length];
+  S.respIdx++;
+
+  setTimeout(() => { typEl.remove(); streamResp(resp.a, resp.cits); }, 850 + Math.random()*350);
+}
+
+function addBubble(role, html) {
+  const msgs = document.getElementById('ch-msgs');
+  const wrap = document.createElement('div');
+  wrap.className = `msg msg-${role==='user'?'u':'a'}`;
+  wrap.innerHTML = `<div class="bbl bbl-${role==='user'?'u':'a'}">${role==='user'?esc(html):html}</div>`;
+  msgs.appendChild(wrap);
+  scrollBot();
+  return wrap;
+}
+
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function addTyping() {
+  const msgs = document.getElementById('ch-msgs');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg msg-a';
+  wrap.innerHTML = '<div class="typing"><div class="td"></div><div class="td"></div><div class="td"></div></div>';
+  msgs.appendChild(wrap);
+  scrollBot();
+  return wrap;
+}
+
+function streamResp(text, cits) {
+  const msgs = document.getElementById('ch-msgs');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg msg-a';
+  const bbl = document.createElement('div');
+  bbl.className = 'bbl bbl-a';
+  wrap.appendChild(bbl);
+  msgs.appendChild(wrap);
+
+  const words = text.split(' ');
+  let i = 0, cur = '';
+
+  const iv = setInterval(() => {
+    if (i >= words.length) {
+      clearInterval(iv);
+      bbl.innerHTML = md(text);
+      if (cits?.length) {
+        const cc = document.createElement('div');
+        cc.className = 'cits';
+        cits.forEach((c, idx) => {
+          const chip = document.createElement('div');
+          chip.className = 'cc';
+          chip.innerHTML = `<i data-lucide="book-open" width="11" height="11"></i> [${idx+1}] ${c.src.replace('.pdf','')} · p.${c.pg}`;
+          chip.onclick = () => openViewer(c);
+          cc.appendChild(chip);
+          lucide.createIcons({ els:[chip] });
+        });
+        wrap.appendChild(cc);
+      }
+      const used = S.credits + 1;
+      setCredits(used);
+      scrollBot();
+      S.sending = false;
+      document.getElementById('send-b').disabled = false;
+      setGuide(4);
+      return;
+    }
+    cur += (i > 0 ? ' ' : '') + words[i];
+    bbl.innerHTML = md(cur) + '<span style="display:inline-block;width:2px;height:13px;background:var(--ac);margin-left:2px;animation:blink .7s infinite;vertical-align:middle;border-radius:1px;"></span>';
+    i += 2;
+    scrollBot();
+  }, 38);
+}
+
+function md(t) {
+  return t
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^• (.+)/gm, '<div style="display:flex;gap:6px;margin:2px 0;"><span style="color:var(--ac);flex-shrink:0;">•</span><span>$1</span></div>')
+    .replace(/^(\d+)\. (.+)/gm, '<div style="display:flex;gap:6px;margin:2px 0;"><span style="color:var(--ac);flex-shrink:0;font-weight:700;">$1.</span><span>$2</span></div>')
+    .replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+}
+
+function scrollBot() {
+  const el = document.getElementById('ch-msgs');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ================================================
+// DOCUMENT VIEWER
+// ================================================
+function openViewer(cit) {
+  const vp = document.getElementById('vp');
+  vp.classList.add('open');
+  document.getElementById('vp-src').textContent = cit.src;
+  document.getElementById('vp-pg').textContent = `Page ${cit.pg}`;
+  document.getElementById('vp-nav-lbl').textContent = `Page ${cit.pg} of ${SOURCES.find(s=>s.name===cit.src)?.pages||18}`;
+  const content = PDF[cit.src]?.[cit.pg] || `<p style="font-size:11.5px;color:#888;margin-bottom:14px;font-family:monospace;">Page ${cit.pg}</p><p><span class="hi">${cit.txt}</span></p><p style="margin-top:12px;color:#555;">Additional surrounding text from the document would be rendered here in the production application.</p>`;
+  document.getElementById('vp-pdf').innerHTML = content;
+  setGuide(5);
+}
+function closeViewer() { document.getElementById('vp').classList.remove('open'); }
+
+// ================================================
+// CREDITS
+// ================================================
+function setCredits(n) {
+  S.credits = n;
+  const pct = (n / S.limit) * 100;
+  document.getElementById('cr-lbl').textContent = `${n} / ${S.limit}`;
+  const bar = document.getElementById('cr-bar');
+  bar.style.width = pct + '%';
+  bar.className = 'cr-bar' + (pct >= 90 ? ' cr-dang' : pct >= 70 ? ' cr-warn' : '');
+  const banner = document.getElementById('cr-banner');
+  if (pct >= 80) {
+    banner.classList.add('show');
+    document.getElementById('cr-ban-txt').textContent = `You've used ${n}/${S.limit} queries — ${S.limit-n} remaining.`;
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// ================================================
+// TABS
+// ================================================
+function toTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('act'));
+  el.classList.add('act');
+  document.getElementById('tab-chat').style.display = name==='chat' ? 'flex' : 'none';
+  if (name==='chat') document.getElementById('tab-chat').style.flexDirection = 'column';
+  document.getElementById('tab-notes').style.display = name==='notes' ? 'flex' : 'none';
+  if (name==='notes') document.getElementById('tab-notes').style.flexDirection = 'column';
+  if (name==='notes') setGuide(5);
+}
+
+// ================================================
+// MODALS
+// ================================================
+function openShare() { document.getElementById('mo-share').classList.add('open'); }
+function closeShare() { document.getElementById('mo-share').classList.remove('open'); }
+function openUpgrade() { document.getElementById('mo-up').classList.add('open'); }
+function closeUpgrade() { document.getElementById('mo-up').classList.remove('open'); }
+function doCopy() { closeShare(); showToast('Link copied to clipboard!'); setGuide(5); }
+
+document.getElementById('mo-share').addEventListener('click', e => { if (e.target===e.currentTarget) closeShare(); });
+document.getElementById('mo-up').addEventListener('click', e => { if (e.target===e.currentTarget) closeUpgrade(); });
+
+// ================================================
+// TOAST
+// ================================================
+function showToast(msg, ms=2400) {
+  document.getElementById('toast-msg').textContent = msg;
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// ================================================
+// INIT
+// ================================================
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  setGuide(0);
+});
+</script>
+</body>
+</html>

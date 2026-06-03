@@ -1,0 +1,103 @@
+"""Application settings loaded from environment."""
+
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_ENV_FILES = (
+    _REPO_ROOT / ".env",
+    Path(".env"),
+    Path("../.env"),
+)
+
+TIER_QUERY_LIMITS: dict[str, int] = {
+    "free": 30,
+    "personal": 500,
+    "team": 2000,
+    "business": 10000,
+    "enterprise": 10000,
+}
+
+TIER_STORAGE_BYTES: dict[str, int] = {
+    "free": 1 * 1024**3,
+    "personal": 10 * 1024**3,
+    "team": 50 * 1024**3,
+    "business": 200 * 1024**3,
+    "enterprise": 200 * 1024**3,
+}
+
+PREMIUM_MODELS = frozenset(
+    {
+        "openai/gpt-4o",
+        "anthropic/claude-3.5-sonnet",
+        "openai/gpt-4o-2024-08-06",
+    }
+)
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=[str(p) for p in _ENV_FILES if p.exists()] or ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    openrouter_api_key: str = ""
+    database_url: str = "sqlite:///./ownNBLM.db"
+    redis_url: str = ""
+    storage_backend: str = "local"
+    storage_local_path: str = "./data/files"
+    storage_s3_bucket: str = ""
+    storage_s3_endpoint: str = ""
+    pageindex_workspace: str = "./data/pageindex"
+    default_llm_model: str = "openai/gpt-4o-mini"
+    default_embed_model: str = "openai/text-embedding-3-small"
+    chunk_size_tokens: int = 512
+    chunk_overlap_tokens: int = 64
+    embed_batch_size: int = 32
+    max_concurrent_ingest: int = 3
+    max_file_size_mb: int = 50
+    max_files_per_batch: int = 10
+    log_level: str = "INFO"
+    environment: str = "development"
+    secret_key: str = "change-me-in-production"
+    jwt_expire_minutes: int = 60 * 24 * 7
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_personal: str = ""
+    stripe_price_team: str = ""
+    stripe_price_business: str = ""
+    sentry_dsn: str = ""
+    frontend_url: str = "http://localhost:5173"
+
+    @property
+    def is_development(self) -> bool:
+        return self.environment == "development"
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def max_file_size_bytes(self) -> int:
+        return self.max_file_size_mb * 1024 * 1024
+
+    def query_limit_for_tier(self, tier: str) -> int:
+        return TIER_QUERY_LIMITS.get(tier, TIER_QUERY_LIMITS["free"])
+
+    def storage_limit_for_tier(self, tier: str) -> int:
+        return TIER_STORAGE_BYTES.get(tier, TIER_STORAGE_BYTES["free"])
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

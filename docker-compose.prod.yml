@@ -1,0 +1,58 @@
+# Production stack — Postgres + Redis + API + worker + frontend
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ownnblm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ownnblm}
+      POSTGRES_DB: ownnblm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ownnblm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://ownnblm:${POSTGRES_PASSWORD:-ownnblm}@postgres:5432/ownnblm
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  worker:
+    build:
+      context: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://ownnblm:${POSTGRES_PASSWORD:-ownnblm}@postgres:5432/ownnblm
+    depends_on:
+      - api
+    command: huey_consumer app.tasks.huey_app.huey -w 2 -k process
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

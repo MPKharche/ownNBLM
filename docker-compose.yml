@@ -1,0 +1,49 @@
+# Phase 1 dev stack — SQLite + Huey, single API container + Vite frontend
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:////data/ownNBLM.db
+      STORAGE_LOCAL_PATH: /data/files
+    volumes:
+      - ./backend:/app
+      - ./data:/data
+      - ../PageIndex:/PageIndex:ro
+    working_dir: /app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:////data/ownNBLM.db
+      STORAGE_LOCAL_PATH: /data/files
+    volumes:
+      - ./backend:/app
+      - ./data:/data
+    working_dir: /app
+    command: huey_consumer app.tasks.huey_app.huey -w 1 -k process
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/frontend
+      - frontend_node_modules:/frontend/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_URL: http://localhost:8000
+
+volumes:
+  frontend_node_modules:
