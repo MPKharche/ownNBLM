@@ -26,6 +26,8 @@ services:
       DATABASE_URL: postgresql+psycopg://ownnblm:${POSTGRES_PASSWORD:-ownnblm}@postgres:5432/ownnblm
       CORS_ORIGINS: https://frontend-jet-ten-16.vercel.app,https://ownnblm.vercel.app
       FRONTEND_URL: https://frontend-jet-ten-16.vercel.app
+    volumes:
+      - api_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,3 +38,4 @@ services:
 
 volumes:
   pgdata:
+  api_data:

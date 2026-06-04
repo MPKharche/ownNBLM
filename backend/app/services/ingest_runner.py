@@ -51,9 +51,16 @@ def _ingest_job(source_id: str) -> None:
             )
         except Exception as e:
             logger.exception("ingest_failed", source_id=source_id)
+            reason = str(e)
             with SessionLocal() as err_db:
                 src = err_db.get(Source, source_id)
-                reason = src.error_message if src and src.error_message else str(e)
+                if src:
+                    if src.error_message:
+                        reason = src.error_message
+                    else:
+                        src.status = "error"
+                        src.error_message = reason[:500]
+                        err_db.commit()
             publish(
                 channel,
                 {"event": "ingest_error", "source_id": source_id, "reason": reason},
