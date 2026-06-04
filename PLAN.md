@@ -78,7 +78,7 @@ isProject: false
 
 ## Production status
 
-**Paused (June 2026).** Vercel serves a maintenance page only; VPS API/Postgres are stopped (`docker compose down`, volumes kept). Phase 4+ and Phase 5 are in `main`, plus hardening: Razorpay billing, folder watch (watchdog), Resend email, public API chat SSE, Playwright/Vitest CI, `/reference` → OpenAPI. Configure `RAZORPAY_*` and `RESEND_API_KEY` before billing/email in prod (Stripe optional).
+**Live (June 2026).** App at [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) · API on VPS `:8010`. Razorpay keys pending registration; Resend optional (password/Google login work without it).
 
 **Resume:** see [ROADMAP.md](ROADMAP.md#resume-production-when-ready) and `scripts/unpause_prod.ps1`.
 
