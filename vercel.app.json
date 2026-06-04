@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "cd frontend && npm ci",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "http://195.35.6.159:8010/api/:path*" },
+    { "source": "/health", "destination": "http://195.35.6.159:8010/health" },
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ]
+}

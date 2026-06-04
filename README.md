@@ -4,15 +4,19 @@ Self-hosted NotebookLM alternative — multi-tenant SaaS knowledge assistant wit
 
 **Plan (source of truth):** [PLAN.md](./PLAN.md) · Cursor: `ownnblm_saas_platform_a0261da2.plan.md`
 
-## Status: Phases 1–3 (dev-complete)
+## Status
 
-| Phase | Delivered |
-|-------|-----------|
-| **1** | Monorepo, ingest (chunk+embed), SSE chat, citations, corpus UI, health, Huey, PageIndex sibling dep |
+| Layer | State |
+|-------|--------|
+| **MVP (Phases 1–3)** | Complete in `main` — local dev and CI |
+| **Production** | **Paused** — [maintenance page](https://frontend-jet-ten-16.vercel.app); VPS stack stopped, data retained |
+| **Phase 4+** | Roadmap only — see [ROADMAP.md](./ROADMAP.md) (not in UI) |
+
+| Phase | Delivered (MVP) |
+|-------|-----------------|
+| **1** | Monorepo, ingest (chunk+embed), SSE chat, citations, corpus UI, health, Huey |
 | **2** | Multi-session chat, source scoping, notes API, read-only share links |
-| **3** | JWT auth, usage/credits (Decimal), billing plans + Stripe checkout stub, PWA, `docker-compose.prod.yml` |
-
-Phase 4+ (admin console, team annotations, public API) remain in PLAN.md.
+| **3** | JWT auth, usage/credits (Decimal), billing plans + Stripe checkout, PWA |
 
 ## Quick start (local)
 
@@ -43,27 +47,17 @@ Open **http://localhost:5173** → Chat → ask e.g. *"What are Attention Residu
 - Login: `admin@ownnblm.local` / `admin123`
 - Dev header (no login): `X-Dev-User-Id: 00000000-0000-4000-8000-000000000001`
 
-## Production (Vercel + Render)
+## Production (paused)
 
-**Frontend (Vercel, GitHub-linked):**
+| | |
+|--|--|
+| **Public URL** | [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) — maintenance page only |
+| **API** | VPS stack stopped (`docker compose -f docker-compose.vps.yml down`); Postgres/API volumes retained |
+| **Phase 4+** | [ROADMAP.md](./ROADMAP.md) — post-MVP scope in docs only (not exposed in UI) |
 
-1. [vercel.com/new](https://vercel.com/new) → Import `MPKharche/ownNBLM`
-2. Set **Root Directory** to `frontend`
-3. Add env: `VITE_API_URL` = `https://ownnblm-api.onrender.com` (after Render deploy)
-4. Deploy — prod URL e.g. `https://ownnblm.vercel.app`
+**Resume:** [ROADMAP.md § Resume production](./ROADMAP.md#resume-production-when-ready) · `powershell -File scripts/unpause_prod.ps1` · live Vercel config snapshot: `vercel.app.json`
 
-**Backend API (Render, same GitHub repo):**
-
-1. [dashboard.render.com](https://dashboard.render.com) → **New Blueprint** → connect repo
-2. Render reads `render.yaml` (Postgres + API web service)
-3. Set **OPENROUTER_API_KEY** on the `ownnblm-api` service
-4. Update `CORS_ORIGINS` / `FRONTEND_URL` on Render if your Vercel URL differs
-
-**Docker (self-hosted VPS):**
-
-```powershell
-docker compose -f docker-compose.prod.yml up --build
-```
+**When resuming (reference):** Vercel serves `frontend/` build with API rewrites to VPS (`docker-compose.vps.yml`). Alternate: Render blueprint (`render.yaml`) or `docker compose -f docker-compose.prod.yml up --build` for self-hosted.
 
 ## Verified (2026-06-03)
 
@@ -111,9 +105,12 @@ Burn is tracked on `/api/v1/usage/dashboard` and `/health` (`llm_burn`). Chat an
 | `scripts/sync_env_key.py` | Sync API key from sibling projects |
 | `src/` | Legacy frontend prototype (pre-monorepo) |
 
-## Documentation (legacy + design)
+## Documentation
 
-Earlier planning docs and the standalone UI prototype remain in the repo:
+- [PLAN.md](./PLAN.md) — platform plan, MVP todos, production status
+- [ROADMAP.md](./ROADMAP.md) — **Phase 4+** (Better Auth/OAuth, dedicated Business containers, admin console, team annotations, public API v1)
+
+Legacy / design references:
 
 - [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) — TOC trees, hybrid retrieval, schemas
 - [ARCHITECTURE_COMPARISON.md](./ARCHITECTURE_COMPARISON.md) — vs Page Index + Grimmory

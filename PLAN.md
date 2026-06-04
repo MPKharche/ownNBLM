@@ -76,6 +76,24 @@ isProject: false
 
 # ownNBLM — Larger Than Life SaaS Platform
 
+## Production status
+
+**Paused (June 2026).** Vercel serves a maintenance page only; VPS API/Postgres are stopped (`docker compose down`, volumes kept). MVP code remains in `main`; nothing Phase 4+ is exposed in the UI.
+
+**Resume:** see [ROADMAP.md](ROADMAP.md#resume-production-when-ready) and `scripts/unpause_prod.ps1`.
+
+## Post-MVP roadmap (Phase 4+)
+
+Detailed scope, deliverables, and acceptance criteria: **[ROADMAP.md](ROADMAP.md)**.
+
+| Track | PLAN todo | Summary |
+|-------|-----------|---------|
+| Phase 4 | `auth-better-auth` | Better Auth: Google OAuth, magic link, workspace invites |
+| Phase 4 | `hybrid-provisioner` | Business tier dedicated containers (Portainer + Traefik) |
+| Phase 4 | `admin-console` | Members, storage, API keys, audit log, billing portal |
+| Phase 4 | `team-annotations` | Shared sources, session annotations, weekly digest |
+| Phase 5 | `public-api` | Public REST API v1, webhooks, OpenAPI, citation export |
+
 ## Strategic Positioning
 
 **ICPs (prioritized):**

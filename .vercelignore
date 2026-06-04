@@ -1,0 +1,7 @@
+backend/**
+frontend/**
+scripts/**
+fixtures/**
+PageIndex/**
+*.md
+!pause-site/**
