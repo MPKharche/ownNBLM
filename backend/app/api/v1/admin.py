@@ -250,3 +250,32 @@ def provision_stack(db: DbSession, user: OwnerUser):
 def send_digest(db: DbSession, user: OwnerUser):
     count = send_weekly_digest(db, user.org_id)
     return {"sent": count}
+
+
+class CorpusResetRequest(BaseModel):
+    delete_all: bool = False
+    requeue_stuck: bool = True
+
+
+@router.post("/corpus/reset")
+def reset_corpus(body: CorpusResetRequest, db: DbSession, user: OwnerUser):
+    from app.services.audit import log_audit
+    from app.services.source_lifecycle import reset_org_corpus
+
+    result = reset_org_corpus(
+        db,
+        user.org_id,
+        delete_all=body.delete_all,
+        requeue_stuck=body.requeue_stuck,
+    )
+    log_audit(
+        db,
+        org_id=user.org_id,
+        user_id=user.id,
+        action="corpus.reset",
+        resource_type="org",
+        resource_id=user.org_id,
+        metadata=result,
+    )
+    db.commit()
+    return result

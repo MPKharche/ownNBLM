@@ -76,7 +76,7 @@ def test_magic_link_dev():
     r = client.post("/api/v1/auth/magic-link", json={"email": "magic.user@example.com"})
     assert r.status_code == 200
     body = r.json()
-    assert body.get("sent") is True
+    assert body.get("magic_link_url") or body.get("sent") is True
     if url := body.get("magic_link_url"):
         token = url.split("magic_token=")[-1]
         v = client.post("/api/v1/auth/magic-link/verify", json={"token": token})

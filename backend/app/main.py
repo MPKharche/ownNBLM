@@ -57,6 +57,8 @@ async def lifespan(app: FastAPI):
         import sentry_sdk  # noqa: PLC0415
 
         sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
+    import threading
+
     if settings.folder_watch_enabled:
 
         def _start_watches() -> None:
@@ -64,9 +66,19 @@ async def lifespan(app: FastAPI):
 
             reload_watches_from_db()
 
-        import threading
-
         threading.Thread(target=_start_watches, daemon=True).start()
+
+    def _recover_ingest() -> None:
+        from app.core.database import SessionLocal
+        from app.services.source_lifecycle import recover_stuck_sources
+
+        with SessionLocal() as db:
+            n = recover_stuck_sources(db, force=True)
+            db.commit()
+            if n:
+                structlog.get_logger().info("ingest_recovered_on_startup", count=n)
+
+    threading.Thread(target=_recover_ingest, daemon=True).start()
     yield
     from app.services.folder_watch import stop_all_watchers
 

@@ -16,6 +16,7 @@ from app.core.rate_limit import IngestRateLimit
 from app.models.source import Source
 from app.services.credits import get_or_create_usage
 from app.services.ingest_runner import start_ingest_background
+from app.services.source_lifecycle import delete_source_completely, retry_source_ingest
 from app.services.storage import get_storage
 
 router = APIRouter()
@@ -126,9 +127,21 @@ def delete_source(source_id: str, db: DbSession, user: CurrentUser):
     source = db.get(Source, source_id)
     if source is None or source.org_id != user.org_id:
         raise HTTPException(status_code=404)
-    db.delete(source)
+    delete_source_completely(db, source)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/{source_id}/retry")
+def retry_source(source_id: str, db: DbSession, user: CurrentUser):
+    source = db.get(Source, source_id)
+    if source is None or source.org_id != user.org_id:
+        raise HTTPException(status_code=404)
+    try:
+        retry_source_ingest(db, source)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"ok": True, "status": "pending"}
 
 
 @router.get("/{source_id}/events")

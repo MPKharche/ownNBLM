@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from "react"
-import { FileUpIcon, FolderOpenIcon, Loader2Icon, Trash2Icon } from "lucide-react"
+import { FileUpIcon, FolderOpenIcon, Loader2Icon, RefreshCwIcon, Trash2Icon } from "lucide-react"
 
-import { api, patchSourcePrivacy, subscribeIngestEvents, type IngestEvent, type Source } from "@/lib/api"
+import {
+  api,
+  deleteSource,
+  patchSourcePrivacy,
+  resetCorpus,
+  retrySourceIngest,
+  subscribeIngestEvents,
+  type IngestEvent,
+  type Source,
+} from "@/lib/api"
 
 type IngestUi = { pct: number; step: string }
 type FolderWatch = {
@@ -29,7 +38,7 @@ export function CorpusPage() {
   }, [load])
 
   function trackIngest(sourceId: string) {
-    const unsub = subscribeIngestEvents(sourceId, (ev: IngestEvent) => {
+    return subscribeIngestEvents(sourceId, (ev: IngestEvent) => {
       if (ev.event === "ingest_progress") {
         setIngestUi((prev) => ({
           ...prev,
@@ -43,9 +52,40 @@ export function CorpusPage() {
           return next
         })
         load()
-        unsub()
       }
     })
+  }
+
+  useEffect(() => {
+    const active = sources.filter((s) => s.status === "pending" || s.status === "processing")
+    const unsubs = active.map((s) => trackIngest(s.id))
+    return () => unsubs.forEach((u) => u())
+  }, [sources])
+
+  async function onDeleteSource(id: string) {
+    if (!confirm("Remove this document from your corpus?")) return
+    await deleteSource(id)
+    setSources((prev) => prev.filter((s) => s.id !== id))
+  }
+
+  async function onRetrySource(id: string) {
+    await retrySourceIngest(id)
+    setIngestUi((prev) => ({ ...prev, [id]: { pct: 5, step: "Queued" } }))
+    trackIngest(id)
+  }
+
+  async function onClearCorpus() {
+    if (
+      !confirm(
+        "Delete ALL documents in this workspace? Sessions will lose source links. Upload fresh files after.",
+      )
+    ) {
+      return
+    }
+    const r = await resetCorpus(true)
+    setSources([])
+    setIngestUi({})
+    alert(`Corpus cleared (${r.deleted} removed). Upload new files when ready.`)
   }
 
   async function addWatch() {
@@ -164,6 +204,18 @@ export function CorpusPage() {
         )}
       </section>
 
+      {sources.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => onClearCorpus()}
+            className="text-xs text-muted-foreground underline hover:text-destructive"
+          >
+            Clear all documents
+          </button>
+        </div>
+      )}
+
       <ul className="space-y-2">
         {sources.map((s) => {
           const progress = ingestUi[s.id]
@@ -188,16 +240,36 @@ export function CorpusPage() {
                     Private
                   </label>
                   <span
-                  className={
-                    s.status === "indexed"
-                      ? "text-primary"
-                      : s.status === "error"
-                        ? "text-destructive"
-                        : "text-muted-foreground"
-                  }
-                >
-                  {progress?.step ?? s.status}
-                </span>
+                    className={
+                      s.status === "indexed"
+                        ? "text-primary"
+                        : s.status === "error"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                    }
+                  >
+                    {progress?.step ?? s.status}
+                  </span>
+                  {(s.status === "error" ||
+                    s.status === "processing" ||
+                    s.status === "pending") && (
+                    <button
+                      type="button"
+                      aria-label="Retry ingest"
+                      onClick={() => onRetrySource(s.id)}
+                      className="text-muted-foreground hover:text-primary"
+                    >
+                      <RefreshCwIcon className="size-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Delete source"
+                    onClick={() => onDeleteSource(s.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2Icon className="size-4" />
+                  </button>
                 </div>
               </div>
               {progress && (

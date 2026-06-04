@@ -321,6 +321,24 @@ export async function revokeApiKey(keyId: string) {
   return api<{ ok: boolean }>(`/api/v1/admin/api-keys/${keyId}`, { method: "DELETE" })
 }
 
+export async function deleteSource(sourceId: string) {
+  return api<{ ok: boolean }>(`/api/v1/sources/${sourceId}`, { method: "DELETE" })
+}
+
+export async function retrySourceIngest(sourceId: string) {
+  return api<{ ok: boolean; status: string }>(`/api/v1/sources/${sourceId}/retry`, {
+    method: "POST",
+  })
+}
+
+export async function resetCorpus(deleteAll: boolean) {
+  return api<{ deleted: number; requeued: number }>("/api/v1/admin/corpus/reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delete_all: deleteAll, requeue_stuck: true }),
+  })
+}
+
 export async function patchSourcePrivacy(sourceId: string, isPrivate: boolean) {
   return api<Source>(`/api/v1/sources/${sourceId}`, {
     method: "PATCH",
