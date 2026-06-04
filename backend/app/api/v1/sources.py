@@ -30,12 +30,24 @@ class SourceOut(BaseModel):
     source_type: str
     byte_size: int | None
     error_message: str | None
+    is_private: bool = False
+
+
+class SourcePatch(BaseModel):
+    is_private: bool | None = None
 
 
 @router.get("", response_model=list[SourceOut])
 def list_sources(db: DbSession, user: CurrentUser):
+    from sqlalchemy import or_
+
     rows = db.execute(
-        select(Source).where(Source.org_id == user.org_id).order_by(Source.created_at.desc())
+        select(Source)
+        .where(
+            Source.org_id == user.org_id,
+            or_(Source.is_private.is_(False), Source.uploaded_by_user_id == user.id),
+        )
+        .order_by(Source.created_at.desc())
     ).scalars()
     return list(rows)
 
@@ -75,6 +87,8 @@ async def upload_source(
         file_path=file_path,
         status="pending",
         byte_size=len(data),
+        uploaded_by_user_id=user.id,
+        is_private=False,
     )
 
     db.add(source)
@@ -92,6 +106,18 @@ async def upload_source(
         },
     )
     start_ingest_background(source.id)
+    return source
+
+
+@router.patch("/{source_id}", response_model=SourceOut)
+def patch_source(source_id: str, body: SourcePatch, db: DbSession, user: CurrentUser):
+    source = db.get(Source, source_id)
+    if source is None or source.org_id != user.org_id:
+        raise HTTPException(status_code=404)
+    if body.is_private is not None:
+        source.is_private = body.is_private
+    db.commit()
+    db.refresh(source)
     return source
 
 

@@ -22,15 +22,59 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+type AuthPayload = {
+  access_token: string
+  refresh_token?: string
+  user_id: string
+  org_id: string
+  email: string
+  role?: string
+}
+
 export async function login(email: string, password: string) {
-  const data = await api<{ access_token: string; user_id: string; org_id: string; email: string }>(
-    "/api/v1/auth/login",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    },
-  )
+  const data = await api<AuthPayload>("/api/v1/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  })
+  persistAuth(data)
+  return data
+}
+
+export async function requestMagicLink(email: string) {
+  return api<{ sent: boolean; magic_link_url?: string }>("/api/v1/auth/magic-link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function verifyMagicLink(token: string) {
+  const data = await api<AuthPayload>("/api/v1/auth/magic-link/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  })
+  persistAuth(data)
+  return data
+}
+
+export async function loginWithGoogle(idToken: string) {
+  const data = await api<AuthPayload>("/api/v1/auth/google", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id_token: idToken }),
+  })
+  persistAuth(data)
+  return data
+}
+
+export async function acceptInvite(token: string, password: string, displayName: string) {
+  const data = await api<AuthPayload>("/api/v1/auth/invites/accept", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password, display_name: displayName }),
+  })
   persistAuth(data)
   return data
 }
@@ -91,6 +135,7 @@ export type Source = {
   source_type: string
   byte_size: number | null
   error_message: string | null
+  is_private?: boolean
 }
 
 export type Session = { id: string; title: string; source_ids: string[] }
@@ -188,4 +233,121 @@ export function subscribeIngestEvents(
     }
   }
   return () => es.close()
+}
+
+export type Member = { id: string; email: string; display_name: string; role: string }
+export type PendingInvite = { id: string; email: string; role: string; expires_at: string }
+export type MemberStorage = {
+  user_id: string | null
+  email: string | null
+  display_name: string
+  storage_bytes: number
+  source_count: number
+}
+export type AuditEvent = {
+  id: string
+  action: string
+  resource_type: string
+  resource_id: string | null
+  user_id: string | null
+  created_at: string
+}
+
+export async function fetchMembers() {
+  return api<Member[]>("/api/v1/admin/members")
+}
+
+export async function fetchPendingInvites() {
+  return api<PendingInvite[]>("/api/v1/admin/invites")
+}
+
+export async function createInvite(email: string, role = "member") {
+  return api<{ invite_url: string }>("/api/v1/admin/invites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, role }),
+  })
+}
+
+export async function fetchMemberStorage() {
+  return api<MemberStorage[]>("/api/v1/admin/members/storage")
+}
+
+export async function fetchAuditLog() {
+  return api<AuditEvent[]>("/api/v1/admin/audit")
+}
+
+export async function openBillingPortal() {
+  const r = await api<{ portal_url: string }>("/api/v1/admin/billing-portal", { method: "POST" })
+  window.location.href = r.portal_url
+}
+
+export async function listApiKeys() {
+  return api<{ id: string; name: string; scope: string; key_prefix: string }[]>("/api/v1/admin/api-keys")
+}
+
+export async function createApiKey(name: string, scope: string) {
+  return api<{ api_key: string; id: string }>("/api/v1/admin/api-keys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, scope }),
+  })
+}
+
+export async function listWebhooks() {
+  return api<{ id: string; url: string; events: string[] }[]>("/api/v1/admin/webhooks")
+}
+
+export async function createWebhook(url: string, events: string[]) {
+  return api<{ id: string }>("/api/v1/admin/webhooks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, events }),
+  })
+}
+
+export async function sendDigestPreview() {
+  return api<{ sent: number }>("/api/v1/admin/digest/send", { method: "POST" })
+}
+
+export async function provisionStack() {
+  return api<{ deployment_mode: string; dedicated_url: string | null }>(
+    "/api/v1/admin/provision-stack",
+    { method: "POST" },
+  )
+}
+
+export async function revokeApiKey(keyId: string) {
+  return api<{ ok: boolean }>(`/api/v1/admin/api-keys/${keyId}`, { method: "DELETE" })
+}
+
+export async function patchSourcePrivacy(sourceId: string, isPrivate: boolean) {
+  return api<Source>(`/api/v1/sources/${sourceId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_private: isPrivate }),
+  })
+}
+
+export async function fetchShareAnnotations(token: string) {
+  return api<
+    { id: string; content: string; author_name: string; created_at: string | null }[]
+  >(`/api/v1/team/share/${token}/annotations`)
+}
+
+export async function postShareAnnotation(token: string, content: string) {
+  return api<{ id: string }>(`/api/v1/team/share/${token}/annotations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  })
+}
+
+export function exportSessionCitations(sessionId: string, format: "bibtex" | "ris" | "zotero") {
+  return fetch(`/api/v1/sessions/${sessionId}/export?format=${format}`, {
+    headers: headers() as Record<string, string>,
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(await r.text())
+    return r.text()
+  })
 }

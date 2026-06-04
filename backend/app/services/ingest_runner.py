@@ -49,6 +49,15 @@ def _ingest_job(source_id: str) -> None:
                     "chunks": chunks,
                 },
             )
+            src = db.get(Source, source_id)
+            if src:
+                from app.services.webhooks import dispatch_webhook
+
+                dispatch_webhook(
+                    src.org_id,
+                    "source.indexed",
+                    {"source_id": source_id, "name": src.name, "chunks": chunks},
+                )
         except Exception as e:
             logger.exception("ingest_failed", source_id=source_id)
             reason = str(e)

@@ -10,7 +10,7 @@ Self-hosted NotebookLM alternative — multi-tenant SaaS knowledge assistant wit
 |-------|--------|
 | **MVP (Phases 1–3)** | Complete in `main` — local dev and CI |
 | **Production** | **Paused** — [maintenance page](https://frontend-jet-ten-16.vercel.app); VPS stack stopped, data retained |
-| **Phase 4+** | Roadmap only — see [ROADMAP.md](./ROADMAP.md) (not in UI) |
+| **Phase 4+ / 5** | Implemented — [ROADMAP.md](./ROADMAP.md); Admin UI at `/admin` when app is running |
 
 | Phase | Delivered (MVP) |
 |-------|-----------------|

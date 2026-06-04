@@ -6,7 +6,7 @@ import { Link } from "react-router-dom"
 
 import { CitationChips } from "@/components/citation-chips"
 import { SourceExcerptPanel, type Citation } from "@/components/source-excerpt-panel"
-import { api, createShareLink, streamChat, type Session, type Source } from "@/lib/api"
+import { api, createShareLink, exportSessionCitations, streamChat, type Session, type Source } from "@/lib/api"
 import { chatMessageTransition, chatMessageVariants, useMotionSafe } from "@/lib/motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -96,6 +96,20 @@ export function ChatPage() {
     }
   }
 
+  async function downloadCitations(format: "bibtex" | "ris" | "zotero") {
+    if (!activeId) return
+    try {
+      const text = await exportSessionCitations(activeId, format)
+      const blob = new Blob([text], { type: "text/plain" })
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(blob)
+      a.download = `session.${format === "bibtex" ? "bib" : "ris"}`
+      a.click()
+    } catch (e) {
+      setShareMsg(e instanceof Error ? e.message : "Export failed")
+    }
+  }
+
   return (
     <div className="flex h-[calc(100svh-8rem)] min-h-0">
       <aside className="w-48 shrink-0 border-r border-border p-2">
@@ -128,6 +142,12 @@ export function ChatPage() {
               onClick={shareSession}
             >
               <ShareIcon className="size-4" /> Share
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="cursor-pointer" onClick={() => downloadCitations("bibtex")}>
+              BibTeX
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="cursor-pointer" onClick={() => downloadCitations("ris")}>
+              RIS
             </Button>
             {shareMsg && <span className="text-xs text-muted-foreground">{shareMsg}</span>}
           </div>

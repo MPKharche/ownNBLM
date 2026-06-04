@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -22,6 +22,10 @@ class Source(Base):
     status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False, index=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     byte_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_private: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    uploaded_by_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

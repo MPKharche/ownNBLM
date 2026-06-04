@@ -6,6 +6,9 @@ import { AppShell } from "@/layouts/AppShell"
 const BillingPage = lazy(() =>
   import("@/pages/BillingPage").then((m) => ({ default: m.BillingPage })),
 )
+const AdminPage = lazy(() =>
+  import("@/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
+)
 const ChatPage = lazy(() => import("@/pages/ChatPage").then((m) => ({ default: m.ChatPage })))
 const CorpusPage = lazy(() =>
   import("@/pages/CorpusPage").then((m) => ({ default: m.CorpusPage })),
@@ -15,6 +18,9 @@ const LoginPage = lazy(() =>
 )
 const SharePage = lazy(() =>
   import("@/pages/SharePage").then((m) => ({ default: m.SharePage })),
+)
+const InvitePage = lazy(() =>
+  import("@/pages/InvitePage").then((m) => ({ default: m.InvitePage })),
 )
 
 function PageFallback() {
@@ -46,6 +52,7 @@ function AppRoutes() {
           element={<LoginPage onLogin={() => (window.location.href = "/chat")} />}
         />
         <Route path="/share/:token" element={<SharePage />} />
+        <Route path="/invite/:token" element={<InvitePage />} />
         <Route
           path="/*"
           element={
@@ -60,6 +67,7 @@ function AppRoutes() {
                     <Route path="/corpus" element={<CorpusPage />} />
                     <Route path="/chat" element={<ChatPage />} />
                     <Route path="/billing" element={<BillingPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
                   </Routes>
                 </Suspense>
               </AppShell>

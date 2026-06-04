@@ -1,6 +1,6 @@
 # ownNBLM — Post-MVP roadmap (Phase 4+)
 
-**Status (June 2026):** Production is **paused** — Vercel serves a maintenance page; VPS API/Postgres stacks are stopped (volumes retained). MVP (Phases 1–3) is shipped in code; items below are **not** exposed in the UI until resumed.
+**Status (June 2026):** Production is **paused** (maintenance page). **Phase 4+ and Phase 5 are implemented** in `main` (backend + `/admin` UI, auth, public API). Resume prod to expose them publicly.
 
 ---
 

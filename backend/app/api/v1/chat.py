@@ -5,13 +5,13 @@ import json
 import uuid
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.core.deps import CurrentUser, DbSession
+from app.core.deps import AuthContext, DbSession, require_scope
 from app.core.rate_limit import ChatRateLimit
 from app.core.config import get_settings
 from app.models.message import Message
@@ -84,9 +84,12 @@ async def chat_sse(
     session_id: str,
     body: ChatRequest,
     db: DbSession,
-    user: CurrentUser,
     _rate: ChatRateLimit,
+    ctx: AuthContext = Depends(require_scope("full")),
 ):
+    if ctx.user is None:
+        raise HTTPException(status_code=401, detail="User context required")
+    user = ctx.user
     session = db.get(ChatSession, session_id)
     if session is None or session.org_id != user.org_id:
         raise HTTPException(status_code=404)
@@ -189,6 +192,29 @@ async def chat_sse(
             )
             deduct_query(save_db, org_id)
             save_db.commit()
+            from app.services.audit import log_audit
+
+            log_audit(
+                save_db,
+                org_id=org_id,
+                user_id=user.id,
+                action="session.chat",
+                resource_type="session",
+                resource_id=session_db_id,
+                metadata={"message_id": assistant_id},
+            )
+
+        from app.services.webhooks import dispatch_webhook
+
+        dispatch_webhook(
+            org_id,
+            "session.answer_generated",
+            {
+                "session_id": session_db_id,
+                "message_id": assistant_id,
+                "answer_preview": answer[:500],
+            },
+        )
 
         yield f"data: {json.dumps({'event': 'done', 'message_id': assistant_id, 'citations': citations})}\n\n"
 

@@ -34,7 +34,7 @@ todos:
     status: completed
   - id: auth-better-auth
     content: "Better Auth: email/password + Google OAuth + magic link; JWT sessions; org_id on login; workspace invite flow"
-    status: pending
+    status: completed
   - id: stripe-billing
     content: "Stripe: subscription products (Free/Personal/Team/Business) + metered overage add-on; webhook handlers; Customer Portal"
     status: completed
@@ -46,7 +46,7 @@ todos:
     status: completed
   - id: hybrid-provisioner
     content: "Business tier dedicated container provisioner: Portainer CE API, Compose stack template, Traefik subdomain routing (org-slug.ownNBLM.com)"
-    status: pending
+    status: completed
   - id: pwa-offline
     content: "PWA: Workbox service worker, offline session browsing, Add to Home Screen manifest, install prompt"
     status: completed
@@ -55,10 +55,10 @@ todos:
     status: completed
   - id: admin-console
     content: "Phase 4 admin console: member management, per-member storage, API key rotation, billing portal link, org audit log"
-    status: pending
+    status: completed
   - id: team-annotations
     content: "Team features: shared sources across workspace, async annotations on shared sessions, weekly email digest"
-    status: pending
+    status: completed
   - id: throttling-resource-limits
     content: "Enforce all resource constraints: 50MB max file, 10 files/batch, 3 concurrent ingest jobs/workspace, 5 files/min rate limit, 32-chunk embedding batch size, 120s SSE timeout, storage quota check before upload (413 if exceeded), Redis storage cache"
     status: completed
@@ -70,7 +70,7 @@ todos:
     status: completed
   - id: public-api
     content: "Phase 5: versioned public REST API (/api/v1/), API key management, webhook outbound, OpenAPI docs, citation export (Zotero/BibTeX)"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -78,7 +78,7 @@ isProject: false
 
 ## Production status
 
-**Paused (June 2026).** Vercel serves a maintenance page only; VPS API/Postgres are stopped (`docker compose down`, volumes kept). MVP code remains in `main`; nothing Phase 4+ is exposed in the UI.
+**Paused (June 2026).** Vercel serves a maintenance page only; VPS API/Postgres are stopped (`docker compose down`, volumes kept). Phase 4+ and Phase 5 features are implemented in `main` (auth, admin, team, public API); resume prod to expose them.
 
 **Resume:** see [ROADMAP.md](ROADMAP.md#resume-production-when-ready) and `scripts/unpause_prod.ps1`.
 

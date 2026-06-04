@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { FileUpIcon, Loader2Icon } from "lucide-react"
 
-import { api, subscribeIngestEvents, type IngestEvent, type Source } from "@/lib/api"
+import { api, patchSourcePrivacy, subscribeIngestEvents, type IngestEvent, type Source } from "@/lib/api"
 
 type IngestUi = { pct: number; step: string }
 
@@ -85,9 +85,22 @@ export function CorpusPage() {
               key={s.id}
               className="rounded-lg border border-border bg-card px-4 py-3 text-sm"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span>{s.name}</span>
-                <span
+                <div className="flex items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(s.is_private)}
+                      onChange={(e) =>
+                        patchSourcePrivacy(s.id, e.target.checked).then((updated) =>
+                          setSources((prev) => prev.map((x) => (x.id === updated.id ? updated : x))),
+                        )
+                      }
+                    />
+                    Private
+                  </label>
+                  <span
                   className={
                     s.status === "indexed"
                       ? "text-primary"
@@ -98,6 +111,7 @@ export function CorpusPage() {
                 >
                   {progress?.step ?? s.status}
                 </span>
+                </div>
               </div>
               {progress && (
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted/30">

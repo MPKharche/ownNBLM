@@ -16,17 +16,25 @@ from app.api.v1 import router as v1_router
 from app.core.config import get_settings
 from app.core.database import Base, engine, get_db
 from app.models import (  # noqa: F401 — register ORM tables
+    ApiKey,
+    AuditEvent,
     Chunk,
     Document,
+    LlmSpendEvent,
+    MagicLinkToken,
     Message,
+    OAuthAccount,
     Org,
+    RefreshToken,
     Session,
+    SessionAnnotation,
     SessionNote,
     ShareLink,
     Source,
     User,
+    WebhookSubscription,
+    WorkspaceInvite,
     WorkspaceUsage,
-    LlmSpendEvent,
 )
 
 settings = get_settings()
@@ -54,7 +62,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="ownNBLM API",
     version=__version__,
-    docs_url="/docs" if settings.is_development else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
     lifespan=lifespan,
 )
 app.state.limiter = limiter

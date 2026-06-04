@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     environment: str = "development"
     secret_key: str = "change-me-in-production"
     jwt_expire_minutes: int = 60 * 24 * 7
+    refresh_token_days: int = 30
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    portainer_url: str = ""
+    portainer_api_key: str = ""
+    resend_api_key: str = ""
+    digest_from_email: str = "digest@ownnblm.local"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

@@ -19,12 +19,14 @@ import {
   CreditCardIcon,
   FileUpIcon,
   MessageSquareIcon,
+  SettingsIcon,
 } from "lucide-react"
 
 const navItems = [
   { title: "Corpus", url: "/corpus", icon: FileUpIcon },
   { title: "Chat", url: "/chat", icon: MessageSquareIcon },
   { title: "Billing", url: "/billing", icon: CreditCardIcon },
+  { title: "Admin", url: "/admin", icon: SettingsIcon },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

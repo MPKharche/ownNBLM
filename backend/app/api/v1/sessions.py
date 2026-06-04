@@ -14,6 +14,8 @@ from app.models.message import Message
 from app.models.session import Session
 from app.models.session_note import SessionNote
 from app.models.share_link import ShareLink
+from app.services.citation_export import export_bibtex, export_ris, export_zotero
+from app.services.citation_export import export_bibtex, export_ris, export_zotero
 
 router = APIRouter()
 
@@ -102,6 +104,21 @@ def add_note(session_id: str, body: NoteCreate, db: DbSession, user: CurrentUser
     return {"id": note.id}
 
 
+@router.get("/{session_id}/export")
+def export_citations(session_id: str, format: str, db: DbSession, user: CurrentUser):
+    session = _get_session(db, session_id, user)
+    fmt = format.lower()
+    if fmt == "bibtex":
+        content = export_bibtex(db, session)
+    elif fmt in ("ris", "zotero"):
+        content = export_zotero(db, session) if fmt == "zotero" else export_ris(db, session)
+    else:
+        raise HTTPException(status_code=400, detail="format must be bibtex, ris, or zotero")
+    from fastapi.responses import PlainTextResponse
+
+    return PlainTextResponse(content, media_type="text/plain")
+
+
 @router.post("/{session_id}/share")
 def create_share(session_id: str, db: DbSession, user: CurrentUser):
     session = _get_session(db, session_id, user)
@@ -117,6 +134,38 @@ def create_share(session_id: str, db: DbSession, user: CurrentUser):
     db.add(link)
     db.commit()
     return {"token": token, "url": f"/share/{token}"}
+
+
+@router.get("/{session_id}/export")
+def export_session_citations(
+    session_id: str,
+    format: str,
+    db: DbSession,
+    user: CurrentUser,
+):
+    session = _get_session(db, session_id, user)
+    fmt = format.lower()
+    if fmt == "bibtex":
+        content = export_bibtex(db, session)
+        media = "application/x-bibtex"
+        ext = "bib"
+    elif fmt == "ris":
+        content = export_ris(db, session)
+        media = "application/x-research-info-systems"
+        ext = "ris"
+    elif fmt == "zotero":
+        content = export_zotero(db, session)
+        media = "application/x-research-info-systems"
+        ext = "ris"
+    else:
+        raise HTTPException(status_code=400, detail="format must be bibtex, ris, or zotero")
+    from fastapi.responses import PlainTextResponse
+
+    return PlainTextResponse(
+        content,
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="session-{session_id[:8]}.{ext}"'},
+    )
 
 
 def public_share(token: str, db: DbSession):

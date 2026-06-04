@@ -16,6 +16,9 @@ class Org(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     tier: Mapped[str] = mapped_column(String(32), default="free", nullable=False)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    deployment_mode: Mapped[str] = mapped_column(String(32), default="shared", nullable=False)
+    dedicated_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

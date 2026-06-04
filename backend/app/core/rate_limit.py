@@ -11,8 +11,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.core.auth import DEV_USER_HEADER
-from app.core.deps import CurrentUser
-from app.models.user import User
+from app.core.deps import AuthContext, get_auth_context
 
 # slowapi on app (health / global); route limits use dependency below (APIRouter-safe)
 limiter = Limiter(key_func=get_remote_address)
@@ -51,12 +50,20 @@ def enforce_auth_rate(request: Request) -> None:
     _enforce(f"auth:{get_remote_address(request)}", AUTH_LIMIT)
 
 
-def enforce_workspace_chat_rate(request: Request, user: CurrentUser) -> None:
-    _enforce(workspace_rate_key(request, user), CHAT_LIMIT)
+def enforce_workspace_chat_rate(
+    request: Request, ctx: AuthContext = Depends(get_auth_context)
+) -> None:
+    if ctx.user is None:
+        return
+    _enforce(workspace_rate_key(request, ctx.user), CHAT_LIMIT)
 
 
-def enforce_workspace_ingest_rate(request: Request, user: CurrentUser) -> None:
-    _enforce(workspace_rate_key(request, user), INGEST_LIMIT)
+def enforce_workspace_ingest_rate(
+    request: Request, ctx: AuthContext = Depends(get_auth_context)
+) -> None:
+    if ctx.user is None:
+        return
+    _enforce(workspace_rate_key(request, ctx.user), INGEST_LIMIT)
 
 
 AuthRateLimit = Annotated[None, Depends(enforce_auth_rate)]
