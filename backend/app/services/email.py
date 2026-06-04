@@ -27,6 +27,10 @@ def send_email(*, to: str, subject: str, html: str) -> bool:
             )
             resp.raise_for_status()
             return True
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text[:500] if exc.response is not None else ""
+            logger.warning("resend_failed", to=to, status=exc.response.status_code if exc.response else None, body=body)
+            return False
         except Exception as exc:
             logger.warning("resend_failed", to=to, error=str(exc))
             return False

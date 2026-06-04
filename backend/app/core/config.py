@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     portainer_url: str = ""
     portainer_api_key: str = ""
     resend_api_key: str = ""
-    digest_from_email: str = "digest@ownnblm.local"
+    digest_from_email: str = "ownNBLM <onboarding@resend.dev>"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

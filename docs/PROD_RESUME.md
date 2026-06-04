@@ -1,23 +1,20 @@
 # Resume production — checklist
 
-Production is **paused** (Vercel maintenance page, VPS API stopped). Use this list when you are ready to go live again.
+Production is **live** at [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app). **Resend** is configured on the VPS for magic-link email.
 
-## What is Resend? (optional — you can skip)
+## Resend (magic link + digest)
 
-[Resend](https://resend.com) is a **transactional email API** (like SendGrid). ownNBLM uses it only to:
+[Resend](https://resend.com) sends login links and optional weekly digests. VPS `.env`: `RESEND_API_KEY`, `DIGEST_FROM_EMAIL=ownNBLM <onboarding@resend.dev>`. Until your domain is verified, Resend only delivers to allowed addresses (your signup email; use `delivered@resend.dev` for API smoke tests).
 
-- Send **magic link** login emails (“Email me a link” on the login page)
-- Send optional **weekly digest** emails to team workspaces
+Password and Google login work without Resend. Re-apply key: `bash scripts/configure_resend_vps.sh re_YOUR_KEY` on the VPS.
 
-It is **not** required for normal login. Use **email + password** (`admin@ownnblm.local` / `admin123` after seed) or **Google sign-in** if `VITE_GOOGLE_CLIENT_ID` is set. Without Resend, the magic-link button will respond with `sent: false` in production — that is expected.
-
-## Can resume now (no Razorpay, no Resend)
+## Ops checklist
 
 | Step | Command / action |
 |------|------------------|
 | 1. Ship code | Merge/commit hardening branch to `main`, `git pull` on VPS |
 | 2. Migrate Postgres | `powershell -File scripts/migrate.ps1` locally; on VPS: `bash scripts/vps_migrate.sh` (or included in `vps_restart_api.sh`) |
-| 3. Email (optional) | **Resend** (`RESEND_API_KEY`) only for “Email me a login link” + weekly digest. Skip if you use **password** or **Google** login — see below |
+| 3. Email | **Resend** configured — magic link on login page; test with `scripts/test_resend.ps1` |
 | 4. Restore Vercel app | `Copy-Item vercel.app.json vercel.json` then `cd frontend && npx vercel deploy --prod` |
 | 5. Start API | `bash scripts/vps_restart_api.sh` on VPS |
 | 6. Smoke test | `powershell -File scripts/e2e_prod_smoke.ps1` |

@@ -51,14 +51,22 @@ structlog.configure(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    if settings.is_development:
+        Base.metadata.create_all(bind=engine)
     if settings.sentry_dsn:
         import sentry_sdk  # noqa: PLC0415
 
         sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
-    from app.services.folder_watch import reload_watches_from_db
+    if settings.folder_watch_enabled:
 
-    reload_watches_from_db()
+        def _start_watches() -> None:
+            from app.services.folder_watch import reload_watches_from_db
+
+            reload_watches_from_db()
+
+        import threading
+
+        threading.Thread(target=_start_watches, daemon=True).start()
     yield
     from app.services.folder_watch import stop_all_watchers
 
