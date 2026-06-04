@@ -26,7 +26,7 @@ function PageFallback() {
 }
 
 function Protected({ children }: { children: React.ReactNode }) {
-  const authed = localStorage.getItem("ownnblm_token") || import.meta.env.DEV
+  const authed = Boolean(localStorage.getItem("ownnblm_token"))
   if (!authed) return <Navigate to="/login" replace />
   return <>{children}</>
 }
@@ -50,27 +50,10 @@ function AppRoutes() {
           path="/*"
           element={
             <Protected>
-              <AppShell>
-                <div className="flex items-center gap-4 border-b border-border px-4 py-2 text-xs">
-                  <nav className="flex gap-3">
-                    <a href="/corpus" className="cursor-pointer text-muted-foreground transition-colors duration-200 hover:text-foreground">
-                      Corpus
-                    </a>
-                    <a href="/chat" className="cursor-pointer text-muted-foreground transition-colors duration-200 hover:text-foreground">
-                      Chat
-                    </a>
-                    <a href="/billing" className="cursor-pointer text-muted-foreground transition-colors duration-200 hover:text-foreground">
-                      Billing
-                    </a>
-                  </nav>
-                  <button
-                    type="button"
-                    className="ml-auto cursor-pointer text-muted-foreground transition-colors duration-200 hover:text-foreground"
-                    onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-                  >
-                    {theme === "dark" ? "Light" : "Dark"}
-                  </button>
-                </div>
+              <AppShell
+                theme={theme}
+                onThemeToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              >
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/chat" replace />} />

@@ -31,8 +31,30 @@ export async function login(email: string, password: string) {
       body: JSON.stringify({ email, password }),
     },
   )
-  localStorage.setItem("ownnblm_token", data.access_token)
+  persistAuth(data)
   return data
+}
+
+export function persistAuth(data: {
+  access_token: string
+  email: string
+  user_id: string
+}) {
+  localStorage.setItem("ownnblm_token", data.access_token)
+  localStorage.setItem("ownnblm_email", data.email)
+  localStorage.setItem("ownnblm_user_id", data.user_id)
+}
+
+export function clearAuth() {
+  localStorage.removeItem("ownnblm_token")
+  localStorage.removeItem("ownnblm_email")
+  localStorage.removeItem("ownnblm_user_id")
+}
+
+export function getStoredUser(): { email: string; name: string } {
+  const email = localStorage.getItem("ownnblm_email") ?? ""
+  const name = email ? email.split("@")[0] : "Account"
+  return { email, name: name.charAt(0).toUpperCase() + name.slice(1) }
 }
 
 export async function register(email: string, password: string, orgName = "My Workspace") {
@@ -44,7 +66,7 @@ export async function register(email: string, password: string, orgName = "My Wo
       body: JSON.stringify({ email, password, org_name: orgName }),
     },
   )
-  localStorage.setItem("ownnblm_token", data.access_token)
+  persistAuth(data)
   return data
 }
 

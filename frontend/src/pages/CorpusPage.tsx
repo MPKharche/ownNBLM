@@ -46,7 +46,7 @@ export function CorpusPage() {
       const token = localStorage.getItem("ownnblm_token")
       const headers: Record<string, string> = {}
       if (token) headers.Authorization = `Bearer ${token}`
-      else headers["X-Dev-User-Id"] = "00000000-0000-4000-8000-000000000001"
+      else if (import.meta.env.DEV) headers["X-Dev-User-Id"] = "00000000-0000-4000-8000-000000000001"
       const res = await fetch("/api/v1/sources", { method: "POST", body: form, headers })
       if (!res.ok) throw new Error(await res.text())
       const src = (await res.json()) as Source

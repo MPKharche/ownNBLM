@@ -62,7 +62,8 @@ export function LoginForm({ className, onLogin, onRegister, ...props }: Props) {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@ownnblm.local"
+                  placeholder="you@example.com"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -74,6 +75,7 @@ export function LoginForm({ className, onLogin, onRegister, ...props }: Props) {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -83,16 +85,7 @@ export function LoginForm({ className, onLogin, onRegister, ...props }: Props) {
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Field>
                 <Button type="submit" className="cursor-pointer" disabled={busy}>
-                  {busy ? "Please wait…" : mode === "login" ? "Login" : "Sign up"}
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
-                  className="cursor-pointer"
-                  disabled
-                  title="Google OAuth ships in Phase 4"
-                >
-                  Login with Google (Phase 4)
+                  {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
                 </Button>
                 <FieldDescription className="text-center">
                   {mode === "login" ? (

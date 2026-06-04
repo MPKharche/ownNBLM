@@ -50,8 +50,8 @@ export function BillingPage() {
           {usage.llm_burn_enabled && usage.llm_budget_usd && (
             <>
               <p className="mt-3 text-sm">
-                LLM burn ({usage.llm_burn_percent}%): ${usage.llm_spent_usd} spent of $
-                {usage.llm_budget_usd} cap · ${usage.llm_remaining_usd} left
+                AI usage ({usage.llm_burn_percent}%): ${usage.llm_spent_usd} of $
+                {usage.llm_budget_usd} · ${usage.llm_remaining_usd} remaining
               </p>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted/30">
                 <div
