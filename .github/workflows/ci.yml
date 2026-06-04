@@ -35,8 +35,45 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install & build
+      - name: Install, test, build
         run: |
           cd frontend
           npm ci
+          npm run test
           npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install deps
+        run: |
+          python -m pip install -e backend
+          cd frontend && npm ci
+          cd ../e2e && npm ci
+          npx playwright install chromium --with-deps
+      - name: Seed E2E DB
+        env:
+          LLM_BUDGET_ENABLED: "false"
+          DATABASE_URL: sqlite:///./e2e.db
+        run: |
+          cd backend
+          python -m app.seed
+      - name: Playwright smoke
+        env:
+          E2E_SKIP_SERVER: "1"
+          LLM_BUDGET_ENABLED: "false"
+        run: |
+          cd backend
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8765 &
+          cd ../frontend
+          VITE_DEV_API_PROXY=http://127.0.0.1:8765 npm run dev -- --host 127.0.0.1 --port 5173 &
+          sleep 8
+          cd ../e2e
+          npm run test:ci

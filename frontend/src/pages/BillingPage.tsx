@@ -3,7 +3,13 @@ import { useEffect, useState } from "react"
 import { api, startCheckout, type Usage } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
-type Plan = { id: string; price: number; queries: number; storage_gb: number }
+type Plan = {
+  id: string
+  price: number
+  price_display?: string
+  queries: number
+  storage_gb: number
+}
 
 export function BillingPage() {
   const [plans, setPlans] = useState<Plan[]>([])
@@ -11,9 +17,14 @@ export function BillingPage() {
   const [msg, setMsg] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
+  const [provider, setProvider] = useState<string | null>(null)
+
   useEffect(() => {
     api<{ plans: Plan[] }>("/api/v1/billing/plans").then((r) => setPlans(r.plans))
     api<Usage>("/api/v1/usage/dashboard").then(setUsage)
+    api<{ provider: string | null; enabled: boolean }>("/api/v1/billing/provider").then((r) =>
+      setProvider(r.enabled ? r.provider : null),
+    )
   }, [])
 
   async function upgrade(planId: string) {
@@ -64,13 +75,21 @@ export function BillingPage() {
         </div>
       )}
 
+      {provider && (
+        <p className="text-sm text-muted-foreground">
+          Payments via {provider === "razorpay" ? "Razorpay" : provider} (India + international
+          cards).
+        </p>
+      )}
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {plans.map((p) => (
           <div key={p.id} className="rounded-xl border border-border p-4">
             <h3 className="font-heading capitalize">{p.id}</h3>
-            <p className="text-2xl font-semibold">${p.price}/mo</p>
+            <p className="text-2xl font-semibold">
+              {p.price_display ?? `$${p.price}`}/mo
+            </p>
             <p className="text-sm text-muted-foreground">
               {p.queries} queries · {p.storage_gb} GB
             </p>

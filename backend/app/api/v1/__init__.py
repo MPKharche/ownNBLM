@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import admin, auth, billing, chat, files, gdpr, public_api, sessions, sources, team, usage
+from app.api.v1 import admin, auth, billing, chat, files, gdpr, public_api, sessions, sources, team, usage, watch
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -14,3 +14,4 @@ router.include_router(admin.router, prefix="/admin", tags=["admin"])
 router.include_router(team.router, prefix="/team", tags=["team"])
 router.include_router(public_api.router, prefix="/public", tags=["public-api"])
 router.include_router(gdpr.router, prefix="/gdpr", tags=["gdpr"])
+router.include_router(watch.router, prefix="/watch", tags=["watch"])

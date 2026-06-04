@@ -126,11 +126,13 @@ def google_auth(body: GoogleAuthRequest, db: DbSession, _rate: AuthRateLimit):
 
 @router.post("/magic-link")
 def magic_link_request(body: MagicLinkRequest, db: DbSession, _rate: AuthRateLimit):
-    _, link = request_magic_link(db, str(body.email))
+    _, link, email_sent = request_magic_link(db, str(body.email))
     settings = get_settings()
-    out: dict = {"sent": True}
-    if settings.is_development:
+    out: dict = {"sent": email_sent}
+    if settings.is_development and link:
         out["magic_link_url"] = link
+    if not email_sent and not settings.is_development:
+        out["detail"] = "Email not configured — set RESEND_API_KEY on the API host"
     return out
 
 

@@ -15,6 +15,7 @@ from app.models.share_link import ShareLink
 from app.models.source import Source
 from app.models.usage import WorkspaceUsage
 from app.models.user import User
+from app.models.watched_folder import WatchedFolder
 from app.models.webhook_subscription import WebhookSubscription
 from app.models.workspace_invite import WorkspaceInvite
 
@@ -38,4 +39,5 @@ __all__ = [
     "AuditEvent",
     "SessionAnnotation",
     "WebhookSubscription",
+    "WatchedFolder",
 ]

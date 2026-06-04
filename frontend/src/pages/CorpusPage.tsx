@@ -1,17 +1,27 @@
 import { useCallback, useEffect, useState } from "react"
-import { FileUpIcon, Loader2Icon } from "lucide-react"
+import { FileUpIcon, FolderOpenIcon, Loader2Icon, Trash2Icon } from "lucide-react"
 
 import { api, patchSourcePrivacy, subscribeIngestEvents, type IngestEvent, type Source } from "@/lib/api"
 
 type IngestUi = { pct: number; step: string }
+type FolderWatch = {
+  id: string
+  path: string
+  enabled: boolean
+  last_scan_at: string | null
+}
 
 export function CorpusPage() {
   const [sources, setSources] = useState<Source[]>([])
+  const [watches, setWatches] = useState<FolderWatch[]>([])
+  const [watchPath, setWatchPath] = useState("")
+  const [watchBusy, setWatchBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [ingestUi, setIngestUi] = useState<Record<string, IngestUi>>({})
 
   const load = useCallback(() => {
     api<Source[]>("/api/v1/sources").then(setSources).catch(console.error)
+    api<FolderWatch[]>("/api/v1/watch").then(setWatches).catch(() => setWatches([]))
   }, [])
 
   useEffect(() => {
@@ -36,6 +46,35 @@ export function CorpusPage() {
         unsub()
       }
     })
+  }
+
+  async function addWatch() {
+    const path = watchPath.trim()
+    if (!path) return
+    setWatchBusy(true)
+    try {
+      await api("/api/v1/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      })
+      setWatchPath("")
+      load()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setWatchBusy(false)
+    }
+  }
+
+  async function removeWatch(id: string) {
+    setWatchBusy(true)
+    try {
+      await api(`/api/v1/watch/${id}`, { method: "DELETE" })
+      load()
+    } finally {
+      setWatchBusy(false)
+    }
   }
 
   async function onUpload(file: File) {
@@ -76,6 +115,54 @@ export function CorpusPage() {
         />
         {uploading && <Loader2Icon className="mt-3 size-5 animate-spin" />}
       </label>
+
+      <section className="rounded-xl border border-border bg-surface/40 p-4">
+        <div className="mb-2 flex items-center gap-2 font-heading text-sm font-medium">
+          <FolderOpenIcon className="size-4" />
+          Watched folders
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Server-side path (must exist on the API host). New PDF/MD/TXT files are ingested automatically.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="text"
+            value={watchPath}
+            onChange={(e) => setWatchPath(e.target.value)}
+            placeholder="C:\Users\you\Documents\research"
+            className="min-w-[200px] flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            disabled={watchBusy || !watchPath.trim()}
+            onClick={() => addWatch()}
+            className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+          >
+            Add watch
+          </button>
+        </div>
+        {watches.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {watches.map((w) => (
+              <li
+                key={w.id}
+                className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <span className="truncate font-mono text-xs">{w.path}</span>
+                <button
+                  type="button"
+                  aria-label="Remove watch"
+                  disabled={watchBusy}
+                  onClick={() => removeWatch(w.id)}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2Icon className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <ul className="space-y-2">
         {sources.map((s) => {

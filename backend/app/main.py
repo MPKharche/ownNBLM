@@ -56,7 +56,13 @@ async def lifespan(app: FastAPI):
         import sentry_sdk  # noqa: PLC0415
 
         sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
+    from app.services.folder_watch import reload_watches_from_db
+
+    reload_watches_from_db()
     yield
+    from app.services.folder_watch import stop_all_watchers
+
+    stop_all_watchers()
 
 
 app = FastAPI(
@@ -107,3 +113,10 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 @app.get("/")
 def root():
     return {"name": "ownNBLM", "version": __version__}
+
+
+@app.get("/reference")
+def api_reference_redirect():
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse(url="/redoc")

@@ -40,13 +40,9 @@ export function AdminPage() {
   const [busy, setBusy] = useState(false)
 
   function loadMembers() {
-    Promise.all([fetchMembers(), fetchPendingInvites(), fetchMemberStorage()])
-      .then(([m, i, s]) => {
-        setMembers(m)
-        setInvites(i)
-        setStorage(s)
-      })
-      .catch((e) => setMsg(e instanceof Error ? e.message : "Failed to load"))
+    fetchMembers().then(setMembers).catch((e) => setMsg(e instanceof Error ? e.message : "Failed"))
+    fetchPendingInvites().then(setInvites).catch(console.error)
+    fetchMemberStorage().then(setStorage).catch(console.error)
   }
 
   function loadKeys() {

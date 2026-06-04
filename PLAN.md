@@ -36,7 +36,7 @@ todos:
     content: "Better Auth: email/password + Google OAuth + magic link; JWT sessions; org_id on login; workspace invite flow"
     status: completed
   - id: stripe-billing
-    content: "Stripe: subscription products (Free/Personal/Team/Business) + metered overage add-on; webhook handlers; Customer Portal"
+    content: "Billing: Razorpay default (India + global cards), optional Stripe; webhooks; checkout + portal — see docs/BILLING_RAZORPAY.md"
     status: completed
   - id: credit-metering
     content: "LLM credit system: Redis counters per workspace, monthly cron reset, LiteLLM usage events → credit deduct + Stripe metered record, upgrade prompt at 80%/100%"
@@ -78,7 +78,7 @@ isProject: false
 
 ## Production status
 
-**Paused (June 2026).** Vercel serves a maintenance page only; VPS API/Postgres are stopped (`docker compose down`, volumes kept). Phase 4+ and Phase 5 features are implemented in `main` (auth, admin, team, public API); resume prod to expose them.
+**Paused (June 2026).** Vercel serves a maintenance page only; VPS API/Postgres are stopped (`docker compose down`, volumes kept). Phase 4+ and Phase 5 are in `main`, plus hardening: Razorpay billing, folder watch (watchdog), Resend email, public API chat SSE, Playwright/Vitest CI, `/reference` → OpenAPI. Configure `RAZORPAY_*` and `RESEND_API_KEY` before billing/email in prod (Stripe optional).
 
 **Resume:** see [ROADMAP.md](ROADMAP.md#resume-production-when-ready) and `scripts/unpause_prod.ps1`.
 

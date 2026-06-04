@@ -15,7 +15,8 @@ from app.models.user import User
 from app.services.auth_service import create_access_token, create_refresh_token, register_user
 
 
-def request_magic_link(db: Session, email: str) -> tuple[MagicLinkToken, str | None]:
+def request_magic_link(db: Session, email: str) -> tuple[MagicLinkToken, str | None, bool]:
+    """Returns (token_row, dev-only link URL, whether email was sent via Resend)."""
     email = email.lower().strip()
     token = secrets.token_urlsafe(32)
     row = MagicLinkToken(
@@ -28,7 +29,10 @@ def request_magic_link(db: Session, email: str) -> tuple[MagicLinkToken, str | N
     db.commit()
     settings = get_settings()
     link = f"{settings.frontend_url}/login?magic_token={token}"
-    return row, link
+    from app.services.email import send_magic_link_email
+
+    email_sent = send_magic_link_email(email, link)
+    return row, link if settings.is_development else None, email_sent
 
 
 def verify_magic_link(db: Session, token: str) -> tuple[str, str]:

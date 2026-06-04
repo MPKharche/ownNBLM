@@ -16,7 +16,7 @@ Self-hosted NotebookLM alternative — multi-tenant SaaS knowledge assistant wit
 |-------|-----------------|
 | **1** | Monorepo, ingest (chunk+embed), SSE chat, citations, corpus UI, health, Huey |
 | **2** | Multi-session chat, source scoping, notes API, read-only share links |
-| **3** | JWT auth, usage/credits (Decimal), billing plans + Stripe checkout, PWA |
+| **3** | JWT auth, usage/credits (Decimal), billing (Razorpay default; Stripe optional), PWA |
 
 ## Quick start (local)
 
@@ -59,10 +59,15 @@ Open **http://localhost:5173** → Chat → ask e.g. *"What are Attention Residu
 
 **When resuming (reference):** Vercel serves `frontend/` build with API rewrites to VPS (`docker-compose.vps.yml`). Alternate: Render blueprint (`render.yaml`) or `docker compose -f docker-compose.prod.yml up --build` for self-hosted.
 
+## Billing (India-first)
+
+Default provider is **Razorpay** (INR plans, international cards). Stripe is optional via `PAYMENT_PROVIDER=stripe`. Setup: [docs/BILLING_RAZORPAY.md](./docs/BILLING_RAZORPAY.md). Copy keys from [.env.example](./.env.example).
+
 ## Verified (2026-06-03)
 
-- `pytest` — 10 passed (health, rate limits, **LLM burn cap**, usage, share, live OpenRouter chat SSE)
-- `npm run build` — production bundle + PWA service worker
+- `pytest` — 20 passed (health, Phase 4/5, hardening, live OpenRouter chat SSE when keyed)
+- `npm run test` + `npm run build` — Vitest + production bundle + PWA
+- Playwright smoke — `cd e2e && npm run test` (starts API + UI via config)
 - UI flows — login/register, corpus upload, SSE chat + citations, share link, billing usage + **LLM burn meter**
 - Sample corpus: *Attention Residuals* PDF (42 chunks, embeddings via OpenRouter)
 - Prod stack: `docker compose -f docker-compose.prod.yml up --build`

@@ -25,7 +25,11 @@ def _db():
     cfg = Config("alembic.ini")
     tables = set(inspect(engine).get_table_names())
     if "oauth_accounts" in tables:
-        command.stamp(cfg, "head")
+        org_cols = {c["name"] for c in inspect(engine).get_columns("orgs")} if "orgs" in tables else set()
+        if "payment_provider" not in org_cols or "watched_folders" not in tables:
+            command.upgrade(cfg, "head")
+        else:
+            command.stamp(cfg, "head")
     elif "orgs" in tables:
         org_cols = {c["name"] for c in inspect(engine).get_columns("orgs")}
         command.stamp(cfg, "004" if "stripe_customer_id" in org_cols else "003")

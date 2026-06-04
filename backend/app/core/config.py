@@ -89,11 +89,20 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    payment_provider: str = "razorpay"
+    billing_currency: str = "INR"
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    razorpay_plan_personal: str = ""
+    razorpay_plan_team: str = ""
+    razorpay_plan_business: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_personal: str = ""
     stripe_price_team: str = ""
     stripe_price_business: str = ""
+    folder_watch_enabled: bool = True
     sentry_dsn: str = ""
     frontend_url: str = "http://localhost:5173"
 

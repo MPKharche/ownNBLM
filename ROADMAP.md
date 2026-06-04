@@ -90,9 +90,14 @@
 
 ## Resume production (when ready)
 
-1. **VPS:** `bash /opt/ownnblm/scripts/vps_restart_api.sh` (or restore `docker-compose.vps.yml` app service and `git pull`).
-2. **Vercel:** Restore app `vercel.json` (frontend build + API rewrites to VPS) from commit before pause, or from `frontend/vercel.json` + root monorepo config in git history.
-3. **Verify:** `powershell -File scripts/e2e_prod_smoke.ps1`
+See **[docs/PROD_RESUME.md](docs/PROD_RESUME.md)** for the full checklist.
+
+1. **Migrate:** `powershell -File scripts/migrate.ps1` (local) · VPS: `bash scripts/vps_migrate.sh` (included in `vps_restart_api.sh`).
+2. **Email:** `RESEND_API_KEY` on VPS before relying on magic links in prod.
+3. **Razorpay:** **Pending registration** — resume prod without billing keys; configure when approved ([docs/BILLING_RAZORPAY.md](docs/BILLING_RAZORPAY.md)).
+4. **VPS:** `bash /opt/ownnblm/scripts/vps_restart_api.sh` after `git pull`.
+5. **Vercel:** `Copy-Item vercel.app.json vercel.json` → `cd frontend && npx vercel deploy --prod`.
+6. **Verify:** `powershell -File scripts/e2e_prod_smoke.ps1` · `powershell -File scripts/unpause_prod.ps1` (prints same steps).
 
 ---
 

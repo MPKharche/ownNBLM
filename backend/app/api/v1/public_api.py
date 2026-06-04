@@ -5,16 +5,16 @@ from __future__ import annotations
 import json
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from fastapi import Depends
-
-from app.core.deps import AuthContext, DbSession, get_auth_context, require_scope
+from app.core.deps import AuthContext, DbSession, require_scope
 from app.models.session import Session
 from app.models.source import Source
+from app.services.chat_stream import stream_session_chat
 from app.services.citation_export import export_bibtex, export_ris, export_zotero
 from app.services.ingest_runner import start_ingest_background
 from app.services.storage import get_storage
@@ -131,3 +131,28 @@ def public_export(
     from fastapi.responses import PlainTextResponse
 
     return PlainTextResponse(content, media_type=media)
+
+
+@router.post("/sessions/{session_id}/chat")
+async def public_chat_sse(
+    session_id: str,
+    body: PublicChatRequest,
+    db: DbSession,
+    ctx: AuthContext = Depends(require_scope("full")),
+):
+    if ctx.user is None:
+        raise HTTPException(status_code=401, detail="API key owner required for chat")
+    session = db.get(Session, session_id)
+    if session is None or session.org_id != ctx.org_id:
+        raise HTTPException(status_code=404)
+
+    async def event_stream():
+        async for line in stream_session_chat(
+            db,
+            session=session,
+            message=body.message,
+            user_id=ctx.user.id,
+        ):
+            yield line
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

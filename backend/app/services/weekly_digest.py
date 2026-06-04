@@ -50,27 +50,14 @@ def send_weekly_digest(db: Session, org_id: str) -> int:
     payload = build_digest_payload(db, org_id)
     settings = get_settings()
     sent = 0
+    from app.services.email import send_email
+
     for user in owners:
-        if settings.resend_api_key:
-            httpx.post(
-                "https://api.resend.com/emails",
-                headers={"Authorization": f"Bearer {settings.resend_api_key}"},
-                json={
-                    "from": settings.digest_from_email,
-                    "to": [user.email],
-                    "subject": f"ownNBLM weekly digest — {org.name}",
-                    "html": _html_digest(org.name, payload),
-                },
-                timeout=15.0,
-            )
-            sent += 1
-        else:
-            logger.info(
-                "digest_dev",
-                to=user.email,
-                org=org.name,
-                payload=json.dumps(payload),
-            )
+        if send_email(
+            to=user.email,
+            subject=f"ownNBLM weekly digest — {org.name}",
+            html=_html_digest(org.name, payload),
+        ):
             sent += 1
     return sent
 

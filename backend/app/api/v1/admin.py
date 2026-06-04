@@ -5,7 +5,7 @@ from app.core.deps import DbSession, OwnerUser
 from app.models.org import Org
 from app.services.api_keys import create_api_key, list_api_keys, revoke_api_key, rotate_api_key
 from app.services.audit import list_audit_events
-from app.services.billing import create_customer_portal_session, stripe_enabled
+from app.services.payments import billing_enabled, get_payment_provider
 from app.services.invites import (
     create_invite,
     list_org_members,
@@ -174,15 +174,22 @@ def audit(db: DbSession, user: OwnerUser, limit: int = 100):
 
 @router.post("/billing-portal")
 def billing_portal(db: DbSession, user: OwnerUser):
-    if not stripe_enabled():
-        raise HTTPException(status_code=503, detail="Stripe not configured")
+    from app.core.config import get_settings
+
+    if not billing_enabled():
+        raise HTTPException(status_code=503, detail="Billing not configured (set Razorpay keys)")
     org = db.get(Org, user.org_id)
     if org is None:
         raise HTTPException(status_code=404)
-    url = create_customer_portal_session(db, org, user.email)
-    if not url:
-        raise HTTPException(status_code=400, detail="No Stripe customer for workspace")
-    return {"portal_url": url}
+    provider = get_payment_provider()
+    if provider is None:
+        raise HTTPException(status_code=503, detail="Billing provider unavailable")
+    url = provider.create_portal_url(
+        org_id=org.id,
+        email=user.email,
+        subscription_id=org.payment_subscription_id,
+    )
+    return {"portal_url": url or f"{get_settings().frontend_url}/billing"}
 
 
 @router.get("/webhooks")

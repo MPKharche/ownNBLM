@@ -2,6 +2,7 @@
 set -e
 cd /opt/ownnblm
 git pull origin main
+bash scripts/vps_migrate.sh
 docker rm -f ownnblm-api-1 2>/dev/null || true
 docker compose -f docker-compose.vps.yml up -d api
 sleep 90
