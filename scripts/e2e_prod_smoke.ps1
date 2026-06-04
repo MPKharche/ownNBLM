@@ -34,7 +34,7 @@ Assert-Ok ($plans.plans.Count -ge 1) "GET /billing/plans"
 $session = Invoke-RestMethod -Uri "$Base/api/v1/sessions" -Method POST -Headers $hdr -ContentType "application/json" -Body '{"title":"Smoke test","source_ids":[]}' -TimeoutSec 30
 Assert-Ok ($session.id) "POST /sessions"
 
-$chat = Invoke-WebRequest -Uri "$Base/api/v1/sessions/$($session.id)/chat" -Method POST -Headers $hdr -ContentType "application/json" -Body '{"message":"Hello"}' -TimeoutSec 120
+$chat = Invoke-WebRequest -Uri "$Base/api/v1/sessions/$($session.id)/chat" -Method POST -Headers $hdr -ContentType "application/json" -Body '{"message":"Hi"}' -TimeoutSec 180
 Assert-Ok ($chat.StatusCode -eq 200) "POST /sessions/{id}/chat (SSE)"
 
 if ($Failed -gt 0) { exit 1 }

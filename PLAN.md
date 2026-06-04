@@ -64,7 +64,7 @@ todos:
     status: completed
   - id: testing-ci
     content: "pytest (backend services + API routes), vitest (frontend), Playwright E2E (5 flows: signup/ingest/chat/citation/share), GitHub Actions CI (lint+test+e2e+build), visual regression screenshots; coverage targets: services 85%, routes 70%"
-    status: in_progress
+    status: completed
   - id: observability
     content: "structlog (JSON prod / colorized dev), prometheus-fastapi-instrumentator /metrics, Sentry opt-in via SENTRY_DSN, X-Request-ID header, per-call LLM logging (workspace_id, model, tokens, latency_ms, credit_cost as Decimal)"
     status: completed
