@@ -9,7 +9,7 @@ Self-hosted NotebookLM alternative — multi-tenant SaaS knowledge assistant wit
 | Layer | State |
 |-------|--------|
 | **MVP (Phases 1–3)** | Complete in `main` — local dev and CI |
-| **Production** | **Paused** — [maintenance page](https://frontend-jet-ten-16.vercel.app); VPS stack stopped, data retained |
+| **Production** | **On hold** — [maintenance page](https://frontend-jet-ten-16.vercel.app); VPS API stopped; **local dev only** ([HOSTING.md](./docs/HOSTING.md)) |
 | **Phase 4+ / 5** | Implemented — [ROADMAP.md](./ROADMAP.md); Admin UI at `/admin` when app is running |
 
 | Phase | Delivered (MVP) |
@@ -47,17 +47,15 @@ Open **http://localhost:5173** → Chat → ask e.g. *"What are Attention Residu
 - Login: `admin@ownnblm.local` / `admin123`
 - Dev header (no login): `X-Dev-User-Id: 00000000-0000-4000-8000-000000000001`
 
-## Production (paused)
+## Production (on hold — local only)
 
 | | |
 |--|--|
-| **Public URL** | [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) — maintenance page only |
-| **API** | VPS stack stopped (`docker compose -f docker-compose.vps.yml down`); Postgres/API volumes retained |
-| **Phase 4+** | [ROADMAP.md](./ROADMAP.md) — post-MVP scope in docs only (not exposed in UI) |
+| **Public URL** | [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) — maintenance page (no live app or API) |
+| **API** | VPS stopped; not suitable for current load. **Vercel cannot host this FastAPI stack** without a full redesign ([HOSTING.md](./docs/HOSTING.md)) |
+| **Use now** | Local Quick start above (`uvicorn` + `npm run dev` on localhost) |
 
-**Resume:** [ROADMAP.md § Resume production](./ROADMAP.md#resume-production-when-ready) · `powershell -File scripts/unpause_prod.ps1` · live Vercel config snapshot: `vercel.app.json`
-
-**When resuming (reference):** Vercel serves `frontend/` build with API rewrites to VPS (`docker-compose.vps.yml`). Alternate: Render blueprint (`render.yaml`) or `docker compose -f docker-compose.prod.yml up --build` for self-hosted.
+**Pause:** `powershell -File scripts/pause_prod.ps1` · **Resume (later):** `scripts/unpause_prod.ps1` + `vercel.app.json` · Choose a stronger backend (Render, Fly, larger VPS, etc.) before going public again.
 
 ## Billing (India-first)
 

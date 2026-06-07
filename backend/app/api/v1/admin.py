@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 
+from app.core.auth_access import assert_signup_disabled
 from app.core.deps import DbSession, OwnerUser
 from app.models.org import Org
 from app.services.api_keys import create_api_key, list_api_keys, revoke_api_key, rotate_api_key
@@ -92,6 +93,7 @@ def invites(db: DbSession, user: OwnerUser):
 
 @router.post("/invites")
 def post_invite(body: InviteRequest, db: DbSession, user: OwnerUser):
+    assert_signup_disabled()
     invite = create_invite(
         db,
         org_id=user.org_id,

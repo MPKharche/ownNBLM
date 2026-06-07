@@ -2,6 +2,5 @@ backend/**
 scripts/**
 fixtures/**
 e2e/**
-pause-site/**
 *.md
 !README.md

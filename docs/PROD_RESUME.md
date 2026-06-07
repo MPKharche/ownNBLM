@@ -1,6 +1,8 @@
 # Resume production — checklist
 
-Production is **live** at [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app). **Resend** is configured on the VPS for magic-link email.
+**Production is paused** (June 2026). The public URL shows a maintenance page; the VPS API is stopped. Use **local dev** until a capable backend is chosen — see [HOSTING.md](./HOSTING.md).
+
+When resuming, production target was [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) with API on VPS `:8010`. **Resend** was configured on the VPS for magic-link email.
 
 ## Resend (magic link + digest)
 

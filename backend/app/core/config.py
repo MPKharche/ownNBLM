@@ -105,6 +105,16 @@ class Settings(BaseSettings):
     folder_watch_enabled: bool = True
     sentry_dsn: str = ""
     frontend_url: str = "http://localhost:5173"
+    # Private preview: only allowlisted emails may sign in; sign-up/OAuth/magic disabled
+    auth_restricted: bool = True
+    auth_allowlist_emails: str = "admin@ownnblm.local"
+    auth_rate_limit_per_minute: int = 5
+    auth_refresh_rate_limit_per_minute: int = 20
+    auth_login_max_failures: int = 5
+    auth_login_lockout_minutes: int = 15
+    chat_rate_limit_per_minute: int = 60
+    ingest_rate_limit_per_minute: int = 10
+    api_global_rate_limit_per_minute: int = 120
 
     @field_validator(
         "llm_budget_usd",

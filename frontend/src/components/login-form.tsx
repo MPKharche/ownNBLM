@@ -16,7 +16,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { loginWithGoogle, requestMagicLink, verifyMagicLink } from "@/lib/api"
+import {
+  fetchAuthConfig,
+  loginWithGoogle,
+  requestMagicLink,
+  verifyMagicLink,
+  type AuthConfig,
+} from "@/lib/api"
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
 
@@ -27,6 +33,7 @@ type Props = React.ComponentProps<"div"> & {
 }
 
 export function LoginForm({ className, onLogin, onRegister, onSuccess, ...props }: Props) {
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null)
   const [mode, setMode] = useState<"login" | "register" | "magic">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -35,20 +42,38 @@ export function LoginForm({ className, onLogin, onRegister, onSuccess, ...props 
   const [magicSent, setMagicSent] = useState<string | null>(null)
   const googleBtnRef = useRef<HTMLDivElement>(null)
 
+  const restricted = authConfig?.restricted ?? true
+  const showGoogle = Boolean(GOOGLE_CLIENT_ID && authConfig?.allow_google)
+  const showRegister = authConfig?.allow_register ?? false
+  const showMagic = authConfig?.allow_magic_link ?? false
+
+  useEffect(() => {
+    fetchAuthConfig()
+      .then(setAuthConfig)
+      .catch(() =>
+        setAuthConfig({
+          restricted: true,
+          allow_register: false,
+          allow_magic_link: false,
+          allow_google: false,
+          message: "Private preview — only approved accounts can sign in.",
+        }),
+      )
+  }, [])
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const magicToken = params.get("magic_token")
-    if (magicToken) {
-      setBusy(true)
-      verifyMagicLink(magicToken)
-        .then(onSuccess)
-        .catch((err) => setError(err instanceof Error ? err.message : "Magic link failed"))
-        .finally(() => setBusy(false))
-    }
-  }, [onSuccess])
+    if (!magicToken || !showMagic) return
+    setBusy(true)
+    verifyMagicLink(magicToken)
+      .then(onSuccess)
+      .catch((err) => setError(err instanceof Error ? err.message : "Magic link failed"))
+      .finally(() => setBusy(false))
+  }, [onSuccess, showMagic])
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return
+    if (!showGoogle || !googleBtnRef.current) return
     const scriptId = "google-gsi"
     const renderButton = () => {
       const g = (window as unknown as { google?: { accounts: { id: unknown } } }).google
@@ -90,7 +115,7 @@ export function LoginForm({ className, onLogin, onRegister, onSuccess, ...props 
     } else {
       renderButton()
     }
-  }, [onSuccess])
+  }, [onSuccess, showGoogle])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -114,24 +139,29 @@ export function LoginForm({ className, onLogin, onRegister, onSuccess, ...props 
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      {GOOGLE_CLIENT_ID && (
-        <div ref={googleBtnRef} className="flex justify-center min-h-10" />
+      {authConfig?.message && (
+        <p className="text-center text-sm text-muted-foreground">{authConfig.message}</p>
       )}
+      {showGoogle && <div ref={googleBtnRef} className="flex justify-center min-h-10" />}
       <Card>
         <CardHeader>
           <CardTitle>
-            {mode === "login"
-              ? "Login to your account"
-              : mode === "register"
-                ? "Create an account"
-                : "Magic link"}
+            {restricted
+              ? "Private preview sign-in"
+              : mode === "login"
+                ? "Login to your account"
+                : mode === "register"
+                  ? "Create an account"
+                  : "Magic link"}
           </CardTitle>
           <CardDescription>
-            {mode === "login"
-              ? "Email and password"
-              : mode === "register"
-                ? "Sign up with email"
-                : "We'll email you a one-time sign-in link"}
+            {restricted
+              ? "Use your approved email and password"
+              : mode === "login"
+                ? "Email and password"
+                : mode === "register"
+                  ? "Sign up with email"
+                  : "We'll email you a one-time sign-in link"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -179,23 +209,23 @@ export function LoginForm({ className, onLogin, onRegister, onSuccess, ...props 
                         : "Send magic link"}
                 </Button>
                 <FieldDescription className="text-center space-y-1">
-                  {mode === "login" && (
-                    <>
-                      <button
-                        type="button"
-                        className="block w-full cursor-pointer underline-offset-4 hover:underline"
-                        onClick={() => setMode("magic")}
-                      >
-                        Sign in with magic link
-                      </button>
-                      <button
-                        type="button"
-                        className="block w-full cursor-pointer underline-offset-4 hover:underline"
-                        onClick={() => setMode("register")}
-                      >
-                        Create account
-                      </button>
-                    </>
+                  {mode === "login" && showMagic && (
+                    <button
+                      type="button"
+                      className="block w-full cursor-pointer underline-offset-4 hover:underline"
+                      onClick={() => setMode("magic")}
+                    >
+                      Sign in with magic link
+                    </button>
+                  )}
+                  {mode === "login" && showRegister && (
+                    <button
+                      type="button"
+                      className="block w-full cursor-pointer underline-offset-4 hover:underline"
+                      onClick={() => setMode("register")}
+                    >
+                      Create account
+                    </button>
                   )}
                   {mode === "register" && (
                     <button

@@ -31,6 +31,18 @@ type AuthPayload = {
   role?: string
 }
 
+export type AuthConfig = {
+  restricted: boolean
+  allow_register: boolean
+  allow_magic_link: boolean
+  allow_google: boolean
+  message: string | null
+}
+
+export async function fetchAuthConfig(): Promise<AuthConfig> {
+  return api<AuthConfig>("/api/v1/auth/config")
+}
+
 export async function login(email: string, password: string) {
   const data = await api<AuthPayload>("/api/v1/auth/login", {
     method: "POST",
