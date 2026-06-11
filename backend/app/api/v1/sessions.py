@@ -23,6 +23,7 @@ router = APIRouter()
 class SessionCreate(BaseModel):
     title: str = "New session"
     source_ids: list[str] = []
+    notebook_id: str | None = None
 
 
 class SessionOut(BaseModel):
@@ -31,6 +32,7 @@ class SessionOut(BaseModel):
     id: str
     title: str
     source_ids: list[str]
+    notebook_id: str | None = None
 
 
 class MessageOut(BaseModel):
@@ -48,16 +50,15 @@ class NoteCreate(BaseModel):
 
 
 @router.get("", response_model=list[SessionOut])
-def list_sessions(db: DbSession, user: CurrentUser):
-    rows = db.execute(
-        select(Session)
-        .where(Session.org_id == user.org_id, Session.user_id == user.id)
-        .order_by(Session.updated_at.desc())
-    ).scalars()
+def list_sessions(db: DbSession, user: CurrentUser, notebook_id: str | None = None):
+    q = select(Session).where(Session.org_id == user.org_id, Session.user_id == user.id)
+    if notebook_id is not None:
+        q = q.where(Session.notebook_id == notebook_id)
+    rows = db.execute(q.order_by(Session.updated_at.desc())).scalars()
     result = []
     for s in rows:
         ids = json.loads(s.source_ids_json or "[]")
-        result.append(SessionOut(id=s.id, title=s.title, source_ids=ids))
+        result.append(SessionOut(id=s.id, title=s.title, source_ids=ids, notebook_id=s.notebook_id))
     return result
 
 
@@ -68,11 +69,12 @@ def create_session(body: SessionCreate, db: DbSession, user: CurrentUser):
         org_id=user.org_id,
         user_id=user.id,
         title=body.title,
+        notebook_id=body.notebook_id,
         source_ids_json=json.dumps(body.source_ids),
     )
     db.add(session)
     db.commit()
-    return SessionOut(id=session.id, title=session.title, source_ids=body.source_ids)
+    return SessionOut(id=session.id, title=session.title, source_ids=body.source_ids, notebook_id=body.notebook_id)
 
 
 @router.get("/{session_id}/messages", response_model=list[MessageOut])

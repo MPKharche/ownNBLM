@@ -78,9 +78,9 @@ isProject: false
 
 ## Production status
 
-**Live (June 2026).** App at [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) · API on VPS `:8010`. Razorpay keys pending registration; Resend optional (password/Google login work without it).
+**On hold (June 2026).** Public URL [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) shows a maintenance page. VPS API at `195.35.6.159:8010` is stopped. Razorpay registration pending; Resend configured on VPS for magic-link email.
 
-**Resume:** see [ROADMAP.md](ROADMAP.md#resume-production-when-ready) and `scripts/unpause_prod.ps1`.
+**Resume:** [docs/PROD_RESUME.md](docs/PROD_RESUME.md) · `scripts/unpause_prod.ps1` · `vercel.app.json`
 
 ## Post-MVP roadmap (Phase 4+)
 

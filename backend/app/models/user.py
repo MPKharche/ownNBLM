@@ -26,3 +26,4 @@ class User(Base):
 
     org = relationship("Org", back_populates="users")
     sessions = relationship("Session", back_populates="user")
+    notebooks = relationship("Notebook", back_populates="user")

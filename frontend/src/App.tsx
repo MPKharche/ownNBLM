@@ -6,6 +6,9 @@ import { AppShell } from "@/layouts/AppShell"
 const BillingPage = lazy(() =>
   import("@/pages/BillingPage").then((m) => ({ default: m.BillingPage })),
 )
+const NotebooksPage = lazy(() =>
+  import("@/pages/NotebooksPage").then((m) => ({ default: m.NotebooksPage })),
+)
 const AdminPage = lazy(() =>
   import("@/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
 )

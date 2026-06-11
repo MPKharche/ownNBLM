@@ -24,6 +24,7 @@ from app.models import (  # noqa: F401 — register ORM tables
     LlmSpendEvent,
     MagicLinkToken,
     Message,
+    Notebook,
     OAuthAccount,
     Org,
     RefreshToken,

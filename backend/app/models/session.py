@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Optional
 
 from app.core.database import Base
 
@@ -21,6 +22,9 @@ class Session(Base):
     )
     title: Mapped[str] = mapped_column(String(255), default="New session", nullable=False)
     source_ids_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notebook_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -33,4 +37,5 @@ class Session(Base):
 
     org = relationship("Org", back_populates="sessions")
     user = relationship("User", back_populates="sessions")
+    notebook = relationship("Notebook", back_populates="sessions")
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")

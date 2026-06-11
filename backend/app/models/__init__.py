@@ -1,3 +1,4 @@
+from app.models.notebook import Notebook, notebook_sources  # noqa: F401
 from app.models.api_key import ApiKey
 from app.models.audit_event import AuditEvent
 from app.models.chunk import Chunk
@@ -40,4 +41,5 @@ __all__ = [
     "SessionAnnotation",
     "WebhookSubscription",
     "WatchedFolder",
+    "Notebook",
 ]

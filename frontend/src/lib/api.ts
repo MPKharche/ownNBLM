@@ -150,7 +150,59 @@ export type Source = {
   is_private?: boolean
 }
 
-export type Session = { id: string; title: string; source_ids: string[] }
+export type Session = { id: string; title: string; source_ids: string[]; notebook_id?: string | null }
+
+export type Notebook = {
+  id: string
+  title: string
+  description: string | null
+  source_ids: string[]
+  session_count: number
+}
+
+export async function listNotebooks(): Promise<Notebook[]> {
+  return api<Notebook[]>("/api/v1/notebooks")
+}
+
+export async function createNotebook(title: string, description?: string, source_ids: string[] = []): Promise<Notebook> {
+  return api<Notebook>("/api/v1/notebooks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, description, source_ids }),
+  })
+}
+
+export async function updateNotebook(id: string, patch: { title?: string; description?: string }): Promise<Notebook> {
+  return api<Notebook>(`/api/v1/notebooks/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  })
+}
+
+export async function deleteNotebook(id: string): Promise<void> {
+  await api(`/api/v1/notebooks/${id}`, { method: "DELETE" })
+}
+
+export async function addSourceToNotebook(notebookId: string, sourceId: string): Promise<void> {
+  await api(`/api/v1/notebooks/${notebookId}/sources/${sourceId}`, { method: "PUT" })
+}
+
+export async function removeSourceFromNotebook(notebookId: string, sourceId: string): Promise<void> {
+  await api(`/api/v1/notebooks/${notebookId}/sources/${sourceId}`, { method: "DELETE" })
+}
+
+export async function listNotebookSessions(notebookId: string): Promise<Session[]> {
+  return api<Session[]>(`/api/v1/notebooks/${notebookId}/sessions`)
+}
+
+export async function createNotebookSession(notebookId: string, title = "New session"): Promise<Session> {
+  return api<Session>(`/api/v1/notebooks/${notebookId}/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  })
+}
 
 export type Usage = {
   queries_used: number

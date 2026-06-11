@@ -2,6 +2,8 @@
 
 **Production is paused** (June 2026). The public URL shows a maintenance page; the VPS API is stopped. Use **local dev** until a capable backend is chosen — see [HOSTING.md](./HOSTING.md).
 
+Production secrets live in **`.env` on the VPS only** (template: [`.env.production.example`](../.env.production.example)). They may differ from your local `.env` — do not copy local keys to prod blindly.
+
 When resuming, production target was [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) with API on VPS `:8010`. **Resend** was configured on the VPS for magic-link email.
 
 ## Resend (magic link + digest)

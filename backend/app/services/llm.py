@@ -1,4 +1,4 @@
-"""LiteLLM router — managed OpenRouter pool; BYOK enterprise-only."""
+"""LiteLLM router — OpenRouter or Anthropic-compatible endpoints; BYOK enterprise-only."""
 
 from __future__ import annotations
 
@@ -10,12 +10,14 @@ from typing import Any
 import litellm
 import structlog
 
-from app.core.config import PREMIUM_MODELS, get_settings
+from app.core.config import PREMIUM_MODELS, Settings, get_settings
 
 logger = structlog.get_logger()
 
 # OpenRouter rejects requests when max_tokens exceeds affordable credits
 DEFAULT_MAX_TOKENS = 512
+
+OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
 
 
 class LLMRouterError(Exception):
@@ -30,6 +32,33 @@ def _credit_multiplier(model: str) -> Decimal:
     return Decimal("5") if model in PREMIUM_MODELS else Decimal("1")
 
 
+def _resolve_llm_route(
+    settings: Settings,
+    *,
+    model: str | None,
+    user_api_key: str | None = None,
+) -> tuple[str, str, str]:
+    """Return (model, api_key, api_base) for LiteLLM."""
+    provider = settings.llm_provider.lower()
+    resolved_model = model or settings.default_llm_model
+
+    if provider == "anthropic":
+        api_key = user_api_key or settings.anthropic_api_key
+        if not api_key:
+            raise LLMRouterError("No Anthropic API key configured")
+        if resolved_model.startswith("openai/") or resolved_model.startswith("openrouter/"):
+            resolved_model = "claude-sonnet-4-20250514"
+        elif resolved_model.startswith("anthropic/"):
+            resolved_model = resolved_model.removeprefix("anthropic/")
+        return resolved_model, api_key, settings.anthropic_base_url.rstrip("/")
+
+    api_key = user_api_key or settings.openrouter_api_key
+    if not api_key:
+        raise LLMRouterError("No LLM API key configured")
+    os.environ["OPENROUTER_API_KEY"] = api_key
+    return resolved_model, api_key, OPENROUTER_API_BASE
+
+
 def chat_completion(
     messages: list[dict[str, str]],
     *,
@@ -40,21 +69,18 @@ def chat_completion(
     max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> Any:
     settings = get_settings()
-    model = model or settings.default_llm_model
 
     if user_api_key and org_tier != "enterprise":
         raise LLMRouterError("BYOK is only available on Enterprise tier")
 
-    api_key = user_api_key or settings.openrouter_api_key
-    if not api_key:
-        raise LLMRouterError("No LLM API key configured")
-
-    os.environ["OPENROUTER_API_KEY"] = api_key
+    resolved_model, api_key, api_base = _resolve_llm_route(
+        settings, model=model, user_api_key=user_api_key
+    )
     return litellm.completion(
-        model=model,
+        model=resolved_model,
         messages=messages,
         api_key=api_key,
-        api_base="https://openrouter.ai/api/v1",
+        api_base=api_base,
         stream=stream,
         max_tokens=max_tokens,
     )
@@ -68,17 +94,14 @@ async def stream_chat(
     max_tokens: int | None = None,
 ) -> AsyncIterator[str]:
     settings = get_settings()
-    model = model or settings.default_llm_model
     max_tokens = max_tokens if max_tokens is not None else settings.llm_max_output_tokens
-    api_key = settings.openrouter_api_key
-    if not api_key:
-        raise LLMRouterError("No LLM API key configured")
+    resolved_model, api_key, api_base = _resolve_llm_route(settings, model=model)
 
     response = await litellm.acompletion(
-        model=model,
+        model=resolved_model,
         messages=messages,
         api_key=api_key,
-        api_base="https://openrouter.ai/api/v1",
+        api_base=api_base,
         stream=True,
         max_tokens=max_tokens,
     )

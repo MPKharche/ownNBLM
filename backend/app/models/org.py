@@ -29,3 +29,4 @@ class Org(Base):
     users = relationship("User", back_populates="org")
     sources = relationship("Source", back_populates="org")
     sessions = relationship("Session", back_populates="org")
+    notebooks = relationship("Notebook", back_populates="org")

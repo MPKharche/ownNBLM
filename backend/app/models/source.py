@@ -38,3 +38,4 @@ class Source(Base):
 
     org = relationship("Org", back_populates="sources")
     documents = relationship("Document", back_populates="source", cascade="all, delete-orphan")
+    notebooks = relationship("Notebook", secondary="notebook_sources", back_populates="sources")

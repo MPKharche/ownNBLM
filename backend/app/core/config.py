@@ -5,7 +5,7 @@ from pathlib import Path
 
 from decimal import Decimal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     )
 
     openrouter_api_key: str = ""
+    # Chat provider: openrouter (default) or anthropic (e.g. cc-vibe.com proxy).
+    # Use OWNNBLM_* names so global Claude Code env vars do not override .env.
+    llm_provider: str = Field(default="openrouter", validation_alias="OWNNBLM_LLM_PROVIDER")
+    anthropic_api_key: str = Field(default="", validation_alias="OWNNBLM_ANTHROPIC_API_KEY")
+    anthropic_base_url: str = Field(
+        default="https://api.anthropic.com",
+        validation_alias="OWNNBLM_ANTHROPIC_BASE_URL",
+    )
     database_url: str = "sqlite:///./ownNBLM.db"
     redis_url: str = ""
     storage_backend: str = "local"

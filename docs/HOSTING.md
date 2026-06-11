@@ -6,8 +6,6 @@
 |-------|--------|
 | **Public site** | [frontend-jet-ten-16.vercel.app](https://frontend-jet-ten-16.vercel.app) — maintenance page |
 | **VPS API** | Stopped (`docker compose -f docker-compose.vps.yml down`); volumes retained |
-| **Development** | **Local only** — see [README](../README.md) Quick start |
-
 Production is on hold until a backend can handle ingest, chat SSE, and Postgres reliably.
 
 ## Why not Vercel as the backend?
@@ -26,13 +24,13 @@ Vercel serverless is built for short-lived HTTP handlers (typically ≤60s, no p
 - Ingest + embeddings: background jobs (Inngest, QStash, or a small always-on worker elsewhere)
 - Chat: streaming within serverless limits or edge-compatible design
 
-That is a separate project phase. Until then, run locally.
+That is a separate project phase. For local work, use `.env` (dev secrets) — production `.env` on the VPS is separate and may use different keys.
 
 ## Local operation
 
 ```powershell
 cd backend
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
 ```powershell
@@ -40,9 +38,7 @@ cd frontend
 npm run dev
 ```
 
-Open **http://localhost:5173** — Vite proxies `/api` to `127.0.0.1:8000`.
-
-Login: `admin@ownnblm.local` / `admin123` (after `make seed`).
+See [README](../README.md#local-development). Templates: `.env.example` (local) · `.env.production.example` (VPS).
 
 ## Resume production (when ready)
 
