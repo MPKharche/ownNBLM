@@ -45,9 +45,9 @@ def run():
             """))
             conn.execute(text("CREATE INDEX ix_notebooks_org_id ON notebooks(org_id)"))
             conn.execute(text("CREATE INDEX ix_notebooks_user_id ON notebooks(user_id)"))
-            print("✓ Created table: notebooks")
+            print("[OK] Created table: notebooks")
         else:
-            print("– Skipped: notebooks (already exists)")
+            print("[--] Skipped: notebooks (already exists)")
 
         # 2. Create notebook_sources join table
         if "notebook_sources" not in existing:
@@ -58,9 +58,9 @@ def run():
                     PRIMARY KEY (notebook_id, source_id)
                 )
             """))
-            print("✓ Created table: notebook_sources")
+            print("[OK] Created table: notebook_sources")
         else:
-            print("– Skipped: notebook_sources (already exists)")
+            print("[--] Skipped: notebook_sources (already exists)")
 
         # 3. Add notebook_id column to sessions (nullable FK)
         session_cols = [c["name"] for c in inspector.get_columns("sessions")]
@@ -69,9 +69,9 @@ def run():
                 "ALTER TABLE sessions ADD COLUMN notebook_id VARCHAR(36) REFERENCES notebooks(id) ON DELETE SET NULL"
             ))
             conn.execute(text("CREATE INDEX ix_sessions_notebook_id ON sessions(notebook_id)"))
-            print("✓ Added column: sessions.notebook_id")
+            print("[OK] Added column: sessions.notebook_id")
         else:
-            print("– Skipped: sessions.notebook_id (already exists)")
+            print("[--] Skipped: sessions.notebook_id (already exists)")
 
     print("\nMigration complete.")
 

@@ -1,4 +1,4 @@
-.PHONY: dev seed test lint migrate health reset install-backend install-frontend
+.PHONY: dev seed test lint migrate health reset install-backend install-frontend dev-local dev-local-api dev-local-worker dev-local-web
 
 ROOT := $(CURDIR)
 BACKEND := $(ROOT)/backend
@@ -45,11 +45,13 @@ install: install-backend install-frontend
 sync-key:
 	$(PYTHON) scripts/sync_env_key.py
 
-# Local dev without Docker (frees port 8000 first — avoids ghost listeners on Windows)
-dev-local-api: restart-api
+# Local dev without Docker — auto-detects a free port, no proxy conflicts ever
+dev-local:
+	$(PYTHON) scripts/dev.py
 
-restart-api:
-	-$(PYTHON) scripts/kill_port.py 8000
+# Manual split-terminal variants (advanced)
+dev-local-api:
+	$(PYTHON) scripts/kill_port.py 8000; \
 	cd $(BACKEND) && $(PYTHON) -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 dev-local-worker:
@@ -57,12 +59,3 @@ dev-local-worker:
 
 dev-local-web:
 	cd $(FRONTEND) && npm run dev
-
-dev-local:
-	@echo "Run in three terminals:"
-	@echo "  make dev-local-api"
-	@echo "  make dev-local-worker"
-	@echo "  make dev-local-web"
-	@echo "If port 8000 is a zombie on Windows, set frontend/.env.development.local:"
-	@echo "  VITE_DEV_API_PROXY=http://127.0.0.1:8001"
-	@echo "  and start API on 8001 instead."
