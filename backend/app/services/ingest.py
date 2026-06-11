@@ -40,16 +40,21 @@ def _chunk_text(text: str) -> list[str]:
     return chunks
 
 
-def _extract_pdf_text(path: Path) -> tuple[str, int]:
+def _extract_pdf_text(path: Path) -> tuple[list[tuple[str, int]], int]:
+    """Return list of (page_text, page_number) and total page count."""
     reader = PyPDF2.PdfReader(str(path))
     pages = []
-    for page in reader.pages:
-        pages.append(page.extract_text() or "")
-    return "\n\n".join(pages), len(reader.pages)
+    for i, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        if text.strip():
+            pages.append((text, i))
+    return pages, len(reader.pages)
 
 
-def _extract_plain(path: Path) -> tuple[str, int]:
-    return path.read_text(encoding="utf-8", errors="replace"), 1
+def _extract_plain(path: Path) -> tuple[list[tuple[str, int]], int]:
+    """Plain text treated as a single page."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return [(text, 1)], 1
 
 
 def run_ingest(db: Session, source_id: str, progress_cb=None) -> None:
@@ -76,9 +81,9 @@ def run_ingest(db: Session, source_id: str, progress_cb=None) -> None:
 
     suffix = file_path.suffix.lower()
     if suffix == ".pdf":
-        full_text, page_count = _extract_pdf_text(file_path)
+        page_texts, page_count = _extract_pdf_text(file_path)
     elif suffix in {".md", ".txt"}:
-        full_text, page_count = _extract_plain(file_path)
+        page_texts, page_count = _extract_plain(file_path)
     else:
         source.status = "error"
         source.error_message = f"Unsupported format: {suffix}"
@@ -86,8 +91,13 @@ def run_ingest(db: Session, source_id: str, progress_cb=None) -> None:
         return
 
     emit(30, "Chunking text")
-    pieces = _chunk_text(full_text)
-    if not pieces:
+    # Build (chunk_text, page_number) pairs preserving source page
+    pieces_with_pages: list[tuple[str, int]] = []
+    for page_text, page_num in page_texts:
+        for chunk_text in _chunk_text(page_text):
+            pieces_with_pages.append((chunk_text, page_num))
+
+    if not pieces_with_pages:
         source.status = "error"
         source.error_message = "No extractable text"
         db.commit()
@@ -108,6 +118,7 @@ def run_ingest(db: Session, source_id: str, progress_cb=None) -> None:
         doc.page_count = page_count
 
     emit(50, "Generating embeddings")
+    pieces = [t for t, _ in pieces_with_pages]
     try:
         vectors = embed_texts(db, source.org_id, pieces)
     except LLMBurnExceeded as e:
@@ -117,14 +128,14 @@ def run_ingest(db: Session, source_id: str, progress_cb=None) -> None:
         return
 
     emit(80, "Storing index")
-    for idx, (text, vec) in enumerate(zip(pieces, vectors, strict=True)):
+    for idx, ((text, page_num), vec) in enumerate(zip(pieces_with_pages, vectors, strict=True)):
         db.add(
             Chunk(
                 id=str(uuid.uuid4()),
                 org_id=source.org_id,
                 document_id=doc.id,
                 chunk_index=idx,
-                page=1,
+                page=page_num,
                 text=text,
                 embedding_ref=embedding_to_json(vec),
                 token_count=len(text.split()),
