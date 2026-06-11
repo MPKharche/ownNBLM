@@ -74,14 +74,15 @@ export function ChatPage() {
     loadData()
   }, [notebookId])
 
-  // Load messages for active session
+  // Load messages for active session — clear immediately on switch to avoid stale flash
   useEffect(() => {
-    if (!activeId) return
+    if (!activeId) { setMessages([]); return }
+    setMessages([]) // clear while loading
     api<{ id: string; role: string; content: string; citations: Citation[] | null }[]>(
       `/api/v1/sessions/${activeId}/messages`,
     ).then((rows) =>
       setMessages(rows.map((r) => ({ role: r.role, content: r.content, citations: r.citations ?? undefined }))),
-    )
+    ).catch(() => setMessages([]))
   }, [activeId])
 
   // Auto-scroll to bottom on new messages
@@ -90,23 +91,22 @@ export function ChatPage() {
   }, [messages])
 
   async function newSession() {
+    setMessages([])
     if (notebookId) {
       const s = await createNotebookSession(notebookId)
       setSessions((prev) => [s, ...prev])
       setActiveId(s.id)
-      // Keep notebook param in URL
       navigate(`/chat?notebook=${notebookId}&session=${s.id}`, { replace: true })
     } else {
       const indexed = sources.filter((s) => s.status === "indexed").map((s) => s.id)
       const s = await api<Session>("/api/v1/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Research session", source_ids: indexed }),
+        body: JSON.stringify({ title: "New session", source_ids: indexed }),
       })
       setSessions((prev) => [s, ...prev])
       setActiveId(s.id)
     }
-    setMessages([])
   }
 
   function selectSession(id: string) {

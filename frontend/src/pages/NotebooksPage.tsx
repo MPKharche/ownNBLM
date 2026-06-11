@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   BookOpenIcon,
@@ -32,110 +32,137 @@ export function NotebooksPage() {
   const navigate = useNavigate()
   const [panel, setPanel] = useState<Panel>("list")
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
-  const [active, setActive] = useState<Notebook | null>(null)
+  // Keep active as an ID so it always re-derives from fresh list data
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [allSources, setAllSources] = useState<Source[]>([])
   const [busy, setBusy] = useState(false)
+  const [toggling, setToggling] = useState<string | null>(null) // sourceId being toggled
   const [creating, setCreating] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newDesc, setNewDesc] = useState("")
   const [editingTitle, setEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const loadRef = useRef(false)
+
+  const active = notebooks.find((n) => n.id === activeId) ?? null
 
   async function load() {
-    const [nbs, srcs] = await Promise.all([
-      listNotebooks(),
-      api<Source[]>("/api/v1/sources"),
-    ])
-    setNotebooks(nbs)
-    setAllSources(srcs)
+    try {
+      const [nbs, srcs] = await Promise.all([
+        listNotebooks(),
+        api<Source[]>("/api/v1/sources"),
+      ])
+      setNotebooks(nbs)
+      setAllSources(srcs)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load data")
+    }
   }
 
   useEffect(() => {
+    if (loadRef.current) return
+    loadRef.current = true
     load()
   }, [])
-
-  // Keep active notebook in sync after mutations
-  useEffect(() => {
-    if (active) {
-      const fresh = notebooks.find((n) => n.id === active.id)
-      if (fresh) setActive(fresh)
-    }
-  }, [notebooks])
 
   async function onCreateNotebook() {
     if (!newTitle.trim()) return
     setBusy(true)
+    setError(null)
     try {
       const nb = await createNotebook(newTitle.trim(), newDesc.trim() || undefined)
       setNewTitle("")
       setNewDesc("")
       setCreating(false)
       await load()
-      openNotebook(nb.id)
+      setActiveId(nb.id)
+      setPanel("detail")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create notebook")
     } finally {
       setBusy(false)
     }
   }
 
-  function openNotebook(id: string) {
-    const nb = notebooks.find((n) => n.id === id)
-    if (nb) {
-      setActive(nb)
-      setPanel("detail")
-    }
-  }
-
   async function onDeleteNotebook(id: string) {
-    if (!confirm("Delete this notebook and all its sessions?")) return
-    await deleteNotebook(id)
-    if (active?.id === id) {
-      setActive(null)
-      setPanel("list")
+    if (!window.confirm("Delete this notebook and all its sessions?")) return
+    setError(null)
+    try {
+      await deleteNotebook(id)
+      if (activeId === id) {
+        setActiveId(null)
+        setPanel("list")
+      }
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete notebook")
     }
-    await load()
   }
 
   async function onToggleSource(sourceId: string) {
-    if (!active) return
-    const attached = active.source_ids.includes(sourceId)
-    if (attached) {
-      await removeSourceFromNotebook(active.id, sourceId)
-    } else {
-      await addSourceToNotebook(active.id, sourceId)
+    if (!active || toggling) return
+    setToggling(sourceId)
+    setError(null)
+    try {
+      const attached = active.source_ids.includes(sourceId)
+      if (attached) {
+        await removeSourceFromNotebook(active.id, sourceId)
+      } else {
+        await addSourceToNotebook(active.id, sourceId)
+      }
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update sources")
+    } finally {
+      setToggling(null)
     }
-    await load()
   }
 
   async function onRenameNotebook() {
     if (!active || !editTitle.trim()) return
-    await updateNotebook(active.id, { title: editTitle.trim() })
-    setEditingTitle(false)
-    await load()
+    setError(null)
+    try {
+      await updateNotebook(active.id, { title: editTitle.trim() })
+      setEditingTitle(false)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to rename")
+    }
   }
 
   async function onNewSession() {
     if (!active) return
     setBusy(true)
+    setError(null)
     try {
       const session = await createNotebookSession(active.id)
       navigate(`/chat?notebook=${active.id}&session=${session.id}`)
-    } finally {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create session")
       setBusy(false)
     }
   }
 
   const indexedSources = allSources.filter((s) => s.status === "indexed")
+  const pendingSources = allSources.filter((s) => s.status !== "indexed")
 
-  // ── List panel ─────────────────────────────────────────────────────────────
+  // ── List panel ──────────────────────────────────────────────────────────────
   if (panel === "list") {
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 lg:p-6">
         <div className="flex items-center justify-between">
           <h1 className="font-heading text-2xl font-semibold">Notebooks</h1>
-          <Button size="sm" onClick={() => setCreating(true)}>
+          <Button size="sm" onClick={() => { setCreating(true); setError(null) }}>
             <PlusIcon className="size-4" /> New notebook
           </Button>
         </div>
+
+        {error && (
+          <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         {creating && (
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -157,7 +184,7 @@ export function NotebooksPage() {
                 {busy ? <Loader2Icon className="size-4 animate-spin" /> : <FilePlusIcon className="size-4" />}
                 Create
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
+              <Button size="sm" variant="ghost" onClick={() => { setCreating(false); setNewTitle(""); setNewDesc("") }}>
                 Cancel
               </Button>
             </div>
@@ -182,10 +209,7 @@ export function NotebooksPage() {
             <li
               key={nb.id}
               className="group flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-accent/60"
-              onClick={() => {
-                setActive(nb)
-                setPanel("detail")
-              }}
+              onClick={() => { setActiveId(nb.id); setPanel("detail"); setError(null) }}
             >
               <div className="min-w-0">
                 <p className="font-medium truncate">{nb.title}</p>
@@ -202,10 +226,7 @@ export function NotebooksPage() {
                   type="button"
                   aria-label="Delete notebook"
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDeleteNotebook(nb.id)
-                  }}
+                  onClick={(e) => { e.stopPropagation(); onDeleteNotebook(nb.id) }}
                 >
                   <Trash2Icon className="size-4" />
                 </button>
@@ -218,17 +239,22 @@ export function NotebooksPage() {
     )
   }
 
-  // ── Detail panel ───────────────────────────────────────────────────────────
-  if (!active) return null
+  // ── Detail panel ─────────────────────────────────────────────────────────────
+  if (!active) {
+    // Notebook was deleted or not found — go back to list
+    setPanel("list")
+    setActiveId(null)
+    return null
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 lg:p-6">
-      {/* Header */}
+      {/* Back + action */}
       <div className="flex items-start justify-between gap-3">
         <button
           type="button"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => { setPanel("list"); setActive(null) }}
+          onClick={() => { setPanel("list"); setActiveId(null); setEditingTitle(false); setError(null) }}
         >
           ← All notebooks
         </button>
@@ -236,12 +262,18 @@ export function NotebooksPage() {
           size="sm"
           disabled={busy || active.source_ids.length === 0}
           onClick={onNewSession}
-          title={active.source_ids.length === 0 ? "Add at least one source first" : ""}
+          title={active.source_ids.length === 0 ? "Attach at least one source first" : ""}
         >
           {busy ? <Loader2Icon className="size-4 animate-spin" /> : <MessageSquarePlusIcon className="size-4" />}
           New chat session
         </Button>
       </div>
+
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       {/* Title */}
       <div>
@@ -250,22 +282,28 @@ export function NotebooksPage() {
             <Input
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onRenameNotebook()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onRenameNotebook()
+                if (e.key === "Escape") setEditingTitle(false)
+              }}
               autoFocus
               className="text-xl font-semibold"
             />
-            <Button size="sm" onClick={onRenameNotebook}>Save</Button>
+            <Button size="sm" onClick={onRenameNotebook} disabled={!editTitle.trim()}>Save</Button>
             <Button size="sm" variant="ghost" onClick={() => setEditingTitle(false)}>
               <XIcon className="size-4" />
             </Button>
           </div>
         ) : (
           <h1
-            className="font-heading text-2xl font-semibold cursor-pointer hover:text-accent transition-colors"
+            className="font-heading text-2xl font-semibold cursor-pointer hover:text-accent transition-colors group flex items-center gap-2"
             title="Click to rename"
             onClick={() => { setEditingTitle(true); setEditTitle(active.title) }}
           >
             {active.title}
+            <span className="text-xs text-muted-foreground font-normal opacity-0 group-hover:opacity-100 transition-opacity">
+              (click to rename)
+            </span>
           </h1>
         )}
         {active.description && (
@@ -280,63 +318,97 @@ export function NotebooksPage() {
           Sources in this notebook
         </h2>
 
-        {indexedSources.length === 0 && (
+        {indexedSources.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No indexed sources yet.{" "}
-            <span
+            <button
+              type="button"
               className="underline cursor-pointer hover:text-foreground"
               onClick={() => navigate("/corpus")}
             >
-              Upload documents on the Corpus page.
-            </span>
+              Upload documents on the Corpus page
+            </button>
+            {" "}first.
           </p>
+        ) : (
+          <ul className="space-y-2">
+            {indexedSources.map((src) => {
+              const attached = active.source_ids.includes(src.id)
+              const isToggling = toggling === src.id
+              return (
+                <li
+                  key={src.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <label className="flex flex-1 cursor-pointer items-center gap-3 min-w-0">
+                    {isToggling ? (
+                      <Loader2Icon className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={attached}
+                        onChange={() => onToggleSource(src.id)}
+                        disabled={!!toggling}
+                        className="size-4 shrink-0 accent-primary"
+                      />
+                    )}
+                    <span className="truncate">{src.name}</span>
+                  </label>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {src.byte_size ? `${(src.byte_size / 1024 / 1024).toFixed(1)} MB` : ""}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
         )}
 
-        <ul className="space-y-2">
-          {indexedSources.map((src) => {
-            const attached = active.source_ids.includes(src.id)
-            return (
-              <li key={src.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm">
-                <label className="flex flex-1 cursor-pointer items-center gap-3 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={attached}
-                    onChange={() => onToggleSource(src.id)}
-                    className="size-4 shrink-0 accent-primary"
-                  />
-                  <span className="truncate">{src.name}</span>
-                </label>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {src.byte_size ? `${(src.byte_size / 1024).toFixed(0)} KB` : ""}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-
-        {allSources.filter((s) => s.status !== "indexed").length > 0 && (
+        {pendingSources.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {allSources.filter((s) => s.status !== "indexed").length} source(s) still indexing — they will appear here when ready.
+            {pendingSources.length} source{pendingSources.length !== 1 ? "s" : ""} still indexing — will appear here when ready.
           </p>
         )}
       </section>
 
-      {/* Sessions list */}
-      <section className="space-y-2">
-        <h2 className="font-heading text-sm font-medium">Chat sessions</h2>
-        {active.session_count === 0 ? (
+      {/* Sessions */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading text-sm font-medium">
+            Chat sessions ({active.session_count})
+          </h2>
+          {active.session_count > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/chat?notebook=${active.id}`)}
+            >
+              Open in Chat →
+            </Button>
+          )}
+        </div>
+        {active.session_count === 0 && (
           <p className="text-sm text-muted-foreground">
-            No sessions yet. Add sources above, then click <strong>New chat session</strong>.
+            {active.source_ids.length === 0
+              ? "Attach at least one source above, then create a session."
+              : "Click \"New chat session\" above to start chatting with your sources."}
           </p>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/chat?notebook=${active.id}`)}
-          >
-            Open sessions in Chat →
-          </Button>
         )}
+      </section>
+
+      {/* Danger zone */}
+      <section className="rounded-xl border border-destructive/30 p-4 space-y-2">
+        <h2 className="text-sm font-medium text-destructive">Danger zone</h2>
+        <p className="text-xs text-muted-foreground">
+          Deleting this notebook removes all its sessions permanently.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-destructive/50 text-destructive hover:bg-destructive/10"
+          onClick={() => onDeleteNotebook(active.id)}
+        >
+          <Trash2Icon className="size-4" /> Delete notebook
+        </Button>
       </section>
     </div>
   )

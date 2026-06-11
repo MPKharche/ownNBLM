@@ -10,7 +10,7 @@ function headers(): HeadersInit {
   return h
 }
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+export async function api<T = void>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: { ...headers(), ...(init?.headers as Record<string, string>) },
@@ -19,6 +19,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail))
   }
+  // 204 No Content and 205 Reset Content carry no body — return undefined cast as T
+  if (res.status === 204 || res.status === 205) return undefined as unknown as T
+  const ct = res.headers.get("content-type") ?? ""
+  if (!ct.includes("application/json")) return undefined as unknown as T
   return res.json() as Promise<T>
 }
 
