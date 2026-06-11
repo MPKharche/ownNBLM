@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { clearAuth, getStoredUser } from "@/lib/api"
 import {
+  BookOpenIcon,
   CommandIcon,
   CreditCardIcon,
   FileUpIcon,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react"
 
 const navItems = [
+  { title: "Notebooks", url: "/notebooks", icon: BookOpenIcon },
   { title: "Corpus", url: "/corpus", icon: FileUpIcon },
   { title: "Chat", url: "/chat", icon: MessageSquareIcon },
   { title: "Billing", url: "/billing", icon: CreditCardIcon },

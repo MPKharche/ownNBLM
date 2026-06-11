@@ -67,6 +67,7 @@ function AppRoutes() {
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/chat" replace />} />
+                    <Route path="/notebooks" element={<NotebooksPage />} />
                     <Route path="/corpus" element={<CorpusPage />} />
                     <Route path="/chat" element={<ChatPage />} />
                     <Route path="/billing" element={<BillingPage />} />
