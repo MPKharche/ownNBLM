@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Crimson+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* ownNBLM design tokens — dark default, .light for light mode */
 @theme inline {
@@ -185,6 +186,158 @@
 /* Panel slide (CSS fallback when Framer Motion reduced) */
 .panel-slide {
   transition: width 200ms ease-in-out;
+}
+
+/* ── Chat message prose ─────────────────────────────────────────────────────
+   Override @tailwindcss/typography defaults for the dark chat theme.
+   Applied via .chat-prose on the message wrapper.                          */
+.chat-prose {
+  --tw-prose-body: hsl(var(--text));
+  --tw-prose-headings: hsl(var(--text));
+  --tw-prose-bold: hsl(var(--text));
+  --tw-prose-lead: hsl(var(--muted));
+  --tw-prose-links: hsl(var(--accent));
+  --tw-prose-counters: hsl(var(--muted));
+  --tw-prose-bullets: hsl(var(--muted));
+  --tw-prose-hr: hsl(var(--border));
+  --tw-prose-quotes: hsl(var(--text));
+  --tw-prose-quote-borders: hsl(var(--accent));
+  --tw-prose-captions: hsl(var(--muted));
+  --tw-prose-code: hsl(var(--accent));
+  --tw-prose-pre-code: hsl(var(--text));
+  --tw-prose-pre-bg: hsl(var(--surface));
+  --tw-prose-th-borders: hsl(var(--border));
+  --tw-prose-td-borders: hsl(var(--border));
+  font-size: 0.875rem;
+  line-height: 1.6;
+  max-width: none;
+}
+
+/* Summary header H2 — highlight with accent underline */
+.chat-prose h2 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--text));
+}
+
+.chat-prose h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+}
+
+/* Tables — clean bordered style */
+.chat-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  margin: 0.75rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+}
+
+.chat-prose thead tr {
+  background-color: hsl(var(--surface));
+}
+
+.chat-prose th {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: hsl(var(--text));
+  border-bottom: 2px solid hsl(var(--border));
+  white-space: nowrap;
+}
+
+.chat-prose td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.6);
+  vertical-align: top;
+}
+
+.chat-prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.chat-prose tbody tr:nth-child(even) {
+  background-color: hsl(var(--surface) / 0.5);
+}
+
+.chat-prose tbody tr:hover {
+  background-color: hsl(var(--border) / 0.3);
+}
+
+/* Blockquotes — source citations */
+.chat-prose blockquote {
+  border-left: 3px solid hsl(var(--accent));
+  padding: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+  background-color: hsl(var(--accent) / 0.05);
+  border-radius: 0 0.25rem 0.25rem 0;
+  font-style: italic;
+  color: hsl(var(--text) / 0.85);
+}
+
+.chat-prose blockquote p { margin: 0; }
+
+/* Inline code */
+.chat-prose code:not(pre code) {
+  background-color: hsl(var(--surface));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+  font-size: 0.8em;
+  color: hsl(var(--accent));
+  font-family: var(--font-mono);
+}
+
+/* Code blocks */
+.chat-prose pre {
+  background-color: hsl(var(--surface)) !important;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.chat-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  color: hsl(var(--text));
+}
+
+/* Lists */
+.chat-prose ul, .chat-prose ol {
+  padding-left: 1.25rem;
+  margin: 0.375rem 0;
+}
+
+.chat-prose li {
+  margin: 0.2rem 0;
+}
+
+.chat-prose li > p { margin: 0; }
+
+/* Bold labels */
+.chat-prose strong {
+  font-weight: 600;
+  color: hsl(var(--text));
+}
+
+/* Source citation inline text — muted */
+.chat-prose .citation-inline {
+  font-size: 0.75rem;
+  color: hsl(var(--muted));
+  font-style: italic;
 }
 
 /* Upload zone dashed border pulse */

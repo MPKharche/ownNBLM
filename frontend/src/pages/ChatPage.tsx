@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
 import { motion } from "framer-motion"
-import ReactMarkdown from "react-markdown"
 import {
   BookOpenIcon,
   FileUpIcon,
@@ -10,6 +9,7 @@ import {
   ShareIcon,
   SparklesIcon,
 } from "lucide-react"
+import { MarkdownRenderer } from "@/components/markdown-renderer"
 
 import { CitationChips } from "@/components/citation-chips"
 import { SourceExcerptPanel, type Citation } from "@/components/source-excerpt-panel"
@@ -317,11 +317,15 @@ export function ChatPage() {
                 initial={motionSafe.initial}
                 animate={motionSafe.animate}
                 transition={chatMessageTransition}
-                className={m.role === "user" ? "ml-auto max-w-[85%] rounded-lg bg-primary/10 px-4 py-2" : ""}
+                className={m.role === "user"
+                  ? "ml-auto max-w-[85%] rounded-lg bg-primary/10 px-4 py-2 text-sm"
+                  : "max-w-full"}
               >
-                <div className="prose prose-invert max-w-none text-sm">
-                  <ReactMarkdown>{m.content}</ReactMarkdown>
-                </div>
+                {m.role === "user" ? (
+                  <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+                ) : (
+                  <MarkdownRenderer content={m.content} />
+                )}
                 <CitationChips citations={m.citations} onSelect={setViewer} />
               </motion.div>
             ))}
