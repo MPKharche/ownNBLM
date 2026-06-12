@@ -1,11 +1,13 @@
 /**
  * DocumentPreviewDrawer — inline PDF/text viewer that opens from citation chips
  * or corpus page. Renders the file in an <iframe> at the correct page.
+ * F9: .md files render as formatted markdown, not raw <pre>.
  */
 
 import { ExternalLinkIcon, XIcon } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { sourcePreviewUrl } from "@/lib/api"
+import { MarkdownRenderer } from "@/components/markdown-renderer"
 
 type Props = {
   sourceId: string
@@ -83,8 +85,8 @@ export function DocumentPreviewDrawer({ sourceId, sourceName, page, onClose }: P
               title={`Preview: ${sourceName}`}
             />
           ) : (
-            /* For markdown/text: fetch and render as pre */
-            <TextPreview url={baseUrl} />
+            // F9: pass sourceName so TextPreview can detect .md and render formatted
+            <TextPreview url={baseUrl} sourceName={sourceName} />
           )}
         </div>
       </div>
@@ -92,22 +94,33 @@ export function DocumentPreviewDrawer({ sourceId, sourceName, page, onClose }: P
   )
 }
 
-function TextPreview({ url }: { url: string }) {
-  const ref = useRef<HTMLPreElement>(null)
+// F9: detect markdown by filename extension passed from parent
+function TextPreview({ url, sourceName }: { url: string; sourceName: string }) {
+  const [content, setContent] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     fetch(url)
       .then((r) => r.text())
-      .then((t) => { if (ref.current) ref.current.textContent = t })
-      .catch(() => { if (ref.current) ref.current.textContent = "Failed to load preview." })
+      .then(setContent)
+      .catch(() => setFailed(true))
   }, [url])
 
+  if (failed) return <p className="p-4 text-sm text-muted-foreground">Failed to load preview.</p>
+  if (content === null) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+
+  const isMd = sourceName.toLowerCase().endsWith(".md")
+  if (isMd) {
+    return (
+      <div className="h-full overflow-auto p-4">
+        <MarkdownRenderer content={content} />
+      </div>
+    )
+  }
+
   return (
-    <pre
-      ref={ref}
-      className="h-full overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs text-foreground/80"
-    >
-      Loading…
+    <pre className="h-full overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs text-foreground/80">
+      {content}
     </pre>
   )
 }

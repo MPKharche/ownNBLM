@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom"
 import { motion } from "framer-motion"
 import {
   BookOpenIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   DownloadIcon,
@@ -47,7 +48,12 @@ export function ChatPage() {
   const [viewer, setViewer] = useState<Citation | null>(null)
   const [shareMsg, setShareMsg] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  // F8: track message counts per session (uses already-fetched data, no extra API)
+  const [sessionMsgCounts, setSessionMsgCounts] = useState<Record<string, number>>({})
+  // S10: scroll-to-bottom button
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const motionSafe = useMotionSafe()
 
@@ -66,7 +72,6 @@ export function ChatPage() {
         setSessions(nbSessions)
         if (!activeId && nbSessions[0]) setActiveId(nbSessions[0].id)
       } else {
-        // No notebook context — load all sessions (legacy flat mode)
         const allSessions = await api<Session[]>("/api/v1/sessions")
         setSessions(allSessions)
         if (!activeId && allSessions[0]) setActiveId(allSessions[0].id)
@@ -80,18 +85,46 @@ export function ChatPage() {
   // Load messages for active session — clear immediately on switch to avoid stale flash
   useEffect(() => {
     if (!activeId) { setMessages([]); return }
-    setMessages([]) // clear while loading
+    setMessages([])
     api<{ id: string; role: string; content: string; citations: Citation[] | null }[]>(
       `/api/v1/sessions/${activeId}/messages`,
-    ).then((rows) =>
-      setMessages(rows.map((r) => ({ role: r.role, content: r.content, citations: r.citations ?? undefined }))),
-    ).catch(() => setMessages([]))
+    ).then((rows) => {
+      const msgs = rows.map((r) => ({ role: r.role, content: r.content, citations: r.citations ?? undefined }))
+      setMessages(msgs)
+      // F8: record count for this session
+      setSessionMsgCounts((prev) => ({ ...prev, [activeId]: msgs.length }))
+    }).catch(() => setMessages([]))
   }, [activeId])
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll on new messages — only when already near bottom
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    const el = scrollContainerRef.current
+    if (!el) return
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distFromBottom < 120) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
   }, [messages])
+
+  // S10: track scroll position to show/hide jump button
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    function onScroll() {
+      const dist = el!.scrollHeight - el!.scrollTop - el!.clientHeight
+      setShowScrollBtn(dist > 200)
+    }
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [])
+
+  // S3: auto-focus input on desktop when session becomes active
+  useEffect(() => {
+    const isMobile = window.matchMedia("(max-width: 640px)").matches
+    if (activeId && !isMobile) {
+      inputRef.current?.focus()
+    }
+  }, [activeId])
 
   async function newSession() {
     setMessages([])
@@ -121,23 +154,63 @@ export function ChatPage() {
 
   async function send() {
     if (!activeId || !input.trim() || streaming) return
+
+    // F6: block if no indexed sources
+    if (indexedCount === 0 && (!notebook || notebook.source_ids.length === 0)) return
+
     const q = input.trim()
     setInput("")
-    setMessages((m) => [...m, { role: "user", content: q }])
+
+    // F1: add user message + empty assistant draft immediately
+    setMessages((m) => [...m, { role: "user", content: q }, { role: "assistant", content: "", citations: [] }])
     setStreaming(true)
+
     let answer = ""
     let cites: Citation[] = []
     try {
       await streamChat(activeId, q, (ev) => {
-        if (ev.event === "token" && typeof ev.delta === "string") answer += ev.delta
+        if (ev.event === "token" && typeof ev.delta === "string") {
+          answer += ev.delta
+          // F1: update last message (the draft assistant bubble) live
+          setMessages((m) => {
+            const copy = [...m]
+            copy[copy.length - 1] = { role: "assistant", content: answer, citations: [] }
+            return copy
+          })
+        }
         if (ev.event === "done" && Array.isArray(ev.citations)) cites = ev.citations as Citation[]
       })
-      setMessages((m) => [...m, { role: "assistant", content: answer, citations: cites }])
+      // Final update with citations
+      setMessages((m) => {
+        const copy = [...m]
+        copy[copy.length - 1] = { role: "assistant", content: answer, citations: cites }
+        return copy
+      })
+      // F8: increment message count for this session (+2: user + assistant)
+      setSessionMsgCounts((prev) => ({ ...prev, [activeId]: (prev[activeId] ?? 0) + 2 }))
+
+      // F2: auto-title session from first user message (only when title is still default)
+      const session = sessions.find((s) => s.id === activeId)
+      if (session && (session.title === "New session" || !session.title)) {
+        const autoTitle = q.slice(0, 60)
+        api(`/api/v1/sessions/${activeId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: autoTitle }),
+        }).then(() => {
+          setSessions((prev) => prev.map((s) => s.id === activeId ? { ...s, title: autoTitle } : s))
+        }).catch(() => { /* non-critical */ })
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      setMessages((m) => [...m, { role: "assistant", content: msg }])
+      setMessages((m) => {
+        const copy = [...m]
+        copy[copy.length - 1] = { role: "assistant", content: msg, citations: [] }
+        return copy
+      })
     } finally {
       setStreaming(false)
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }
   }
 
@@ -161,12 +234,18 @@ export function ChatPage() {
       const blob = new Blob([text], { type: "text/plain" })
       const a = document.createElement("a")
       a.href = URL.createObjectURL(blob)
-      a.download = `session.${format === "bibtex" ? "bib" : "ris"}`
+      // Use notebook title + date in filename instead of raw session id
+      const notebookSlug = notebook?.title.replace(/\s+/g, "-").slice(0, 30) ?? "session"
+      const dateStr = new Date().toISOString().slice(0, 10)
+      a.download = `${notebookSlug}-${dateStr}.${format === "bibtex" ? "bib" : "ris"}`
       a.click()
     } catch (e) {
       setShareMsg(e instanceof Error ? e.message : "Export failed")
     }
   }
+
+  // F6: derive whether sending is blocked by missing sources
+  const noSourcesBlocked = indexedCount === 0 && (!notebook || notebook.source_ids.length === 0) && hasSessions
 
   return (
     <div className="flex h-[calc(100svh-3rem)] min-h-0 flex-col">
@@ -182,7 +261,7 @@ export function ChatPage() {
       )}
 
       <div className="flex flex-1 min-h-0">
-        {/* Sessions sidebar — collapsible, hidden on mobile by default */}
+        {/* Sessions sidebar */}
         <aside className={`flex flex-col border-r border-border bg-surface/20 transition-all duration-200 ${sidebarOpen ? "w-44 sm:w-52" : "w-0"} overflow-hidden shrink-0`}>
           <div className="flex-1 overflow-y-auto p-2 space-y-1 min-w-44 sm:min-w-52">
             <button type="button" onClick={newSession}
@@ -190,36 +269,46 @@ export function ChatPage() {
               <PlusIcon className="size-3.5" /> New session
             </button>
             {!hasSessions && <p className="px-1 text-xs text-muted-foreground">No sessions yet.</p>}
-            {sessions.map((s) => (
-              <button key={s.id} type="button" onClick={() => selectSession(s.id)}
-                className={`w-full cursor-pointer rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted ${activeId === s.id ? "bg-muted font-medium text-foreground" : "text-muted-foreground"}`}>
-                <span className="block truncate">{s.title}</span>
-              </button>
-            ))}
+            {sessions.map((s) => {
+              const count = sessionMsgCounts[s.id]
+              return (
+                <button key={s.id} type="button" onClick={() => selectSession(s.id)}
+                  className={`w-full cursor-pointer rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted ${activeId === s.id ? "bg-muted font-medium text-foreground" : "text-muted-foreground"}`}>
+                  <span className="flex items-center justify-between gap-1">
+                    <span className="block truncate">{s.title}</span>
+                    {/* F8: message count badge */}
+                    {count != null && count > 0 && (
+                      <span className="shrink-0 text-[9px] text-muted-foreground/60 tabular-nums">·{count}</span>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </aside>
 
         {/* Sidebar toggle handle */}
         <button type="button" onClick={() => setSidebarOpen((v) => !v)}
+          aria-label={sidebarOpen ? "Collapse sessions sidebar" : "Expand sessions sidebar"}
           className="flex shrink-0 items-center justify-center w-4 border-r border-border bg-surface/10 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
           {sidebarOpen ? <ChevronLeftIcon className="size-3" /> : <ChevronRightIcon className="size-3" />}
         </button>
 
         {/* Main chat */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Toolbar — only when messages exist */}
+          {/* Toolbar */}
           {activeId && messages.length > 0 && (
             <div className="flex shrink-0 items-center justify-end gap-1.5 border-b border-border px-3 py-1.5">
               {shareMsg && <span className="mr-auto text-xs text-muted-foreground">{shareMsg}</span>}
-              <button type="button" onClick={shareSession}
+              <button type="button" onClick={shareSession} aria-label="Share session"
                 className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-foreground">
                 <ShareIcon className="size-3" /> Share
               </button>
-              <button type="button" onClick={() => downloadCitations("bibtex")}
+              <button type="button" onClick={() => downloadCitations("bibtex")} aria-label="Export BibTeX citations"
                 className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-foreground">
                 <DownloadIcon className="size-3" /> BibTeX
               </button>
-              <button type="button" onClick={() => downloadCitations("ris")}
+              <button type="button" onClick={() => downloadCitations("ris")} aria-label="Export RIS citations"
                 className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-foreground">
                 <DownloadIcon className="size-3" /> RIS
               </button>
@@ -227,7 +316,7 @@ export function ChatPage() {
           )}
 
           {/* Message thread */}
-          <div className="flex-1 overflow-y-auto">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative">
             <div className="mx-auto max-w-3xl px-4 py-4 space-y-5">
               {/* Empty — no sessions */}
               {!hasSessions && (
@@ -283,7 +372,16 @@ export function ChatPage() {
                     <div className="flex gap-3">
                       <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/10 text-accent text-xs font-bold mt-0.5">A</div>
                       <div className="min-w-0 flex-1">
-                        <MarkdownRenderer content={m.content} />
+                        {/* F1: show content live as it streams; typing dots only before first token */}
+                        {m.content ? (
+                          <MarkdownRenderer content={m.content} />
+                        ) : streaming && i === messages.length - 1 ? (
+                          <div className="flex items-center gap-1.5 py-2">
+                            <span className="size-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+                            <span className="size-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+                            <span className="size-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+                          </div>
+                        ) : null}
                         <CitationChips citations={m.citations} onSelect={setViewer} />
                       </div>
                     </div>
@@ -291,36 +389,54 @@ export function ChatPage() {
                 </motion.div>
               ))}
 
-              {/* Typing indicator */}
-              {streaming && (
-                <div className="flex gap-3">
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-accent/40 bg-accent/10 text-accent text-xs font-bold">A</div>
-                  <div className="flex items-center gap-1.5 py-2">
-                    <span className="size-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
-                    <span className="size-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
-                    <span className="size-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
-                  </div>
-                </div>
-              )}
               <div ref={bottomRef} />
             </div>
+
+            {/* S10: Jump-to-bottom button */}
+            {showScrollBtn && (
+              <button
+                type="button"
+                aria-label="Jump to latest message"
+                onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
+                className="fixed bottom-24 right-6 z-10 flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground shadow-lg transition-colors hover:border-accent hover:text-foreground sm:absolute sm:bottom-6 sm:right-4"
+              >
+                <ChevronDownIcon className="size-3.5" /> Latest
+              </button>
+            )}
           </div>
 
           {/* Input bar */}
           <div className="shrink-0 border-t border-border bg-background/80 p-3">
+            {/* F6: no-sources warning inline */}
+            {noSourcesBlocked && (
+              <div className="mx-auto mb-2 max-w-3xl flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400">
+                <FileUpIcon className="size-3.5 shrink-0" />
+                No indexed sources —{" "}
+                <Link to="/corpus" className="underline underline-offset-2 hover:text-amber-300">Upload documents</Link>
+                {" "}to get cited answers.
+              </div>
+            )}
             <div className="mx-auto max-w-3xl flex items-end gap-2">
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px" }}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send() } }}
-                placeholder={hasSessions ? (notebook ? `Ask about "${notebook.title}"…` : "Ask about your documents…") : "Create a session first…"}
-                disabled={streaming || !activeId}
+                placeholder={
+                  noSourcesBlocked
+                    ? "Upload documents in Corpus first…"
+                    : hasSessions
+                      ? (notebook ? `Ask about "${notebook.title}"…` : "Ask about your documents…")
+                      : "Create a session first…"
+                }
+                disabled={streaming || !activeId || noSourcesBlocked}
                 rows={1}
                 className="flex-1 resize-none rounded-xl border border-border bg-surface/60 px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none disabled:opacity-50 leading-relaxed"
                 style={{ minHeight: "2.75rem", maxHeight: "10rem" }}
               />
-              <button type="button" onClick={send} disabled={streaming || !activeId || !input.trim()}
+              <button type="button" onClick={send}
+                aria-label="Send message"
+                disabled={streaming || !activeId || !input.trim() || noSourcesBlocked}
                 className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition-opacity hover:opacity-90 disabled:opacity-40">
                 <SendIcon className="size-4" />
               </button>

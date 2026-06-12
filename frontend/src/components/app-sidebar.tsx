@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 
 import { NavUser } from "@/components/nav-user"
@@ -20,7 +21,9 @@ import {
   CreditCardIcon,
   FileUpIcon,
   MessageSquareIcon,
+  MoreHorizontalIcon,
   SettingsIcon,
+  XIcon,
 } from "lucide-react"
 
 export const navItems = [
@@ -82,30 +85,81 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   )
 }
 
-/** Mobile bottom navigation bar — shown only on small screens */
+/** Mobile bottom navigation bar — shown only on small screens.
+ *  S20: primary 3 items + a "more" button that reveals Billing and Admin in a bottom sheet.
+ */
 export function MobileBottomNav() {
   const location = useLocation()
-  // Show only the 3 most-used items on mobile bottom bar
-  const mobileItems = navItems.slice(0, 3)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const primaryItems = navItems.slice(0, 3)
+  const secondaryItems = navItems.slice(3)
+  const isSecondaryActive = secondaryItems.some((i) => location.pathname.startsWith(i.url))
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border bg-background/95 backdrop-blur-sm sm:hidden">
-      {mobileItems.map((item) => {
-        const Icon = item.icon
-        const active = location.pathname.startsWith(item.url)
-        return (
-          <Link
-            key={item.url}
-            to={item.url}
-            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors ${
-              active ? "text-accent" : "text-muted-foreground hover:text-foreground"
-            }`}
+    <>
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border bg-background/95 backdrop-blur-sm sm:hidden">
+        {primaryItems.map((item) => {
+          const Icon = item.icon
+          const active = location.pathname.startsWith(item.url)
+          return (
+            <Link
+              key={item.url}
+              to={item.url}
+              onClick={() => setMoreOpen(false)}
+              className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors ${
+                active ? "text-accent" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className={`size-5 ${active ? "text-accent" : ""}`} />
+              <span>{item.title}</span>
+            </Link>
+          )
+        })}
+        {/* S20: more button */}
+        <button
+          type="button"
+          onClick={() => setMoreOpen((v) => !v)}
+          className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors ${
+            isSecondaryActive || moreOpen ? "text-accent" : "text-muted-foreground hover:text-foreground"
+          }`}
+          aria-label="More navigation items"
+          aria-expanded={moreOpen}
+        >
+          {moreOpen ? <XIcon className="size-5" /> : <MoreHorizontalIcon className="size-5" />}
+          <span>More</span>
+        </button>
+      </nav>
+
+      {/* Bottom sheet for secondary items */}
+      {moreOpen && (
+        <div
+          className="fixed inset-0 z-30 sm:hidden"
+          onClick={() => setMoreOpen(false)}
+        >
+          <div
+            className="absolute bottom-16 left-0 right-0 border-t border-border bg-background/98 backdrop-blur-sm shadow-lg"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Icon className={`size-5 ${active ? "text-accent" : ""}`} />
-            <span>{item.title}</span>
-          </Link>
-        )
-      })}
-    </nav>
+            {secondaryItems.map((item) => {
+              const Icon = item.icon
+              const active = location.pathname.startsWith(item.url)
+              return (
+                <Link
+                  key={item.url}
+                  to={item.url}
+                  onClick={() => setMoreOpen(false)}
+                  className={`flex items-center gap-3 px-6 py-4 text-sm transition-colors ${
+                    active ? "text-accent font-medium" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-5" />
+                  <span>{item.title}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

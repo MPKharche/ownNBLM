@@ -72,10 +72,14 @@ const components: Components = {
     )
   },
 
-  // Headings — use heading font
-  h1: ({ children }) => <h1 className="font-heading">{children}</h1>,
-  h2: ({ children }) => <h2 className="font-heading">{children}</h2>,
-  h3: ({ children }) => <h3 className="font-heading">{children}</h3>,
+  // S12: Cap headings at h3 to avoid competing with page hierarchy.
+  // # → h3, ## → h4, ### → h5, #### → h6
+  h1: ({ children }) => <h3 className="font-heading">{children}</h3>,
+  h2: ({ children }) => <h4 className="font-heading">{children}</h4>,
+  h3: ({ children }) => <h5 className="font-heading">{children}</h5>,
+  h4: ({ children }) => <h6 className="font-heading">{children}</h6>,
+  h5: ({ children }) => <h6 className="font-heading">{children}</h6>,
+  h6: ({ children }) => <h6 className="font-heading">{children}</h6>,
 
   // Links — open in new tab safely
   a({ href, children }) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, Link } from "react-router-dom"
 import ReactMarkdown from "react-markdown"
 
 import { CitationChips } from "@/components/citation-chips"
@@ -95,11 +95,20 @@ export function SharePage() {
               placeholder="Add a team comment…"
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) addAnnotation() }}
             />
             <Button onClick={addAnnotation}>Post</Button>
           </div>
         ) : (
-          <p className="mt-6 text-xs text-muted-foreground">Sign in to add team annotations.</p>
+          // S11: actionable sign-in CTA instead of bare text
+          <div className="mt-6">
+            <Link
+              to={`/login?return=/share/${token ?? ""}`}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
+            >
+              Sign in to add a team annotation →
+            </Link>
+          </div>
         )}
       </div>
       {viewer && <SourceExcerptPanel citation={viewer} onClose={() => setViewer(null)} />}

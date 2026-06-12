@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Loader2Icon, SendIcon, ShieldIcon, UsersIcon, WebhookIcon } from "lucide-react"
 
 import {
@@ -25,7 +26,15 @@ import { Input } from "@/components/ui/input"
 type Tab = "members" | "keys" | "webhooks" | "audit"
 
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>("members")
+  const [searchParams, setSearchParams] = useSearchParams()
+  // S9: sync active tab with ?tab= URL param so browser back/forward and sharing work
+  const tabParam = searchParams.get("tab") as Tab | null
+  const [tab, setTabState] = useState<Tab>(tabParam && ["members", "keys", "webhooks", "audit"].includes(tabParam) ? tabParam : "members")
+
+  function setTab(t: Tab) {
+    setTabState(t)
+    setSearchParams({ tab: t }, { replace: true })
+  }
   const [members, setMembers] = useState<Member[]>([])
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [storage, setStorage] = useState<MemberStorage[]>([])

@@ -32,17 +32,19 @@ export function NotebooksPage() {
   const navigate = useNavigate()
   const [panel, setPanel] = useState<Panel>("list")
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
-  // Keep active as an ID so it always re-derives from fresh list data
   const [activeId, setActiveId] = useState<string | null>(null)
   const [allSources, setAllSources] = useState<Source[]>([])
   const [busy, setBusy] = useState(false)
-  const [toggling, setToggling] = useState<string | null>(null) // sourceId being toggled
+  const [toggling, setToggling] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newDesc, setNewDesc] = useState("")
   const [editingTitle, setEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState("")
   const [error, setError] = useState<string | null>(null)
+  // S14: inline confirm instead of window.confirm
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [sourceSearch, setSourceSearch] = useState("")
   const loadRef = useRef(false)
 
   const active = notebooks.find((n) => n.id === activeId) ?? null
@@ -86,7 +88,7 @@ export function NotebooksPage() {
   }
 
   async function onDeleteNotebook(id: string) {
-    if (!window.confirm("Delete this notebook and all its sessions?")) return
+    setConfirmDeleteId(null)
     setError(null)
     try {
       await deleteNotebook(id)
@@ -137,6 +139,7 @@ export function NotebooksPage() {
     setError(null)
     try {
       const session = await createNotebookSession(active.id)
+      // F4: optimistic navigation — don't await load(), go straight to chat
       navigate(`/chat?notebook=${active.id}&session=${session.id}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create session")
@@ -146,6 +149,11 @@ export function NotebooksPage() {
 
   const indexedSources = allSources.filter((s) => s.status === "indexed")
   const pendingSources = allSources.filter((s) => s.status !== "indexed")
+
+  // S23: filter sources by search
+  const filteredIndexed = sourceSearch
+    ? indexedSources.filter((s) => s.name.toLowerCase().includes(sourceSearch.toLowerCase()))
+    : indexedSources
 
   // ── List panel ──────────────────────────────────────────────────────────────
   if (panel === "list") {
@@ -204,6 +212,26 @@ export function NotebooksPage() {
           </div>
         )}
 
+        {/* S14: inline delete confirmation card */}
+        {confirmDeleteId && (
+          <div className="rounded-xl border border-destructive/50 bg-card p-4 space-y-2">
+            <p className="text-sm font-medium">
+              Delete "{notebooks.find((n) => n.id === confirmDeleteId)?.title}"?
+            </p>
+            <p className="text-xs text-muted-foreground">
+              This will permanently remove the notebook and all its chat sessions.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" variant="destructive" onClick={() => onDeleteNotebook(confirmDeleteId)}>
+                Delete notebook
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
         <ul className="space-y-2">
           {notebooks.map((nb) => (
             <li
@@ -224,9 +252,9 @@ export function NotebooksPage() {
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  aria-label="Delete notebook"
+                  aria-label={`Delete notebook ${nb.title}`}
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); onDeleteNotebook(nb.id) }}
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(nb.id) }}
                 >
                   <Trash2Icon className="size-4" />
                 </button>
@@ -241,7 +269,6 @@ export function NotebooksPage() {
 
   // ── Detail panel ─────────────────────────────────────────────────────────────
   if (!active) {
-    // Notebook was deleted or not found — go back to list
     setPanel("list")
     setActiveId(null)
     return null
@@ -311,12 +338,17 @@ export function NotebooksPage() {
         )}
       </div>
 
-      {/* Source picker */}
+      {/* Source picker with search */}
       <section className="rounded-xl border border-border bg-card p-4 space-y-3">
-        <h2 className="font-heading text-sm font-medium flex items-center gap-2">
-          <BookOpenIcon className="size-4" />
-          Sources in this notebook
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-heading text-sm font-medium flex items-center gap-2">
+            <BookOpenIcon className="size-4" />
+            Sources in this notebook
+          </h2>
+          <span className="text-xs text-muted-foreground">
+            {active.source_ids.length} attached
+          </span>
+        </div>
 
         {indexedSources.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -331,36 +363,51 @@ export function NotebooksPage() {
             {" "}first.
           </p>
         ) : (
-          <ul className="space-y-2">
-            {indexedSources.map((src) => {
-              const attached = active.source_ids.includes(src.id)
-              const isToggling = toggling === src.id
-              return (
-                <li
-                  key={src.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
-                >
-                  <label className="flex flex-1 cursor-pointer items-center gap-3 min-w-0">
-                    {isToggling ? (
-                      <Loader2Icon className="size-4 shrink-0 animate-spin text-muted-foreground" />
-                    ) : (
-                      <input
-                        type="checkbox"
-                        checked={attached}
-                        onChange={() => onToggleSource(src.id)}
-                        disabled={!!toggling}
-                        className="size-4 shrink-0 accent-primary"
-                      />
-                    )}
-                    <span className="truncate">{src.name}</span>
-                  </label>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {src.byte_size ? `${(src.byte_size / 1024 / 1024).toFixed(1)} MB` : ""}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
+          <>
+            {/* Source search — M23 */}
+            {indexedSources.length > 5 && (
+              <input
+                type="text"
+                placeholder="Search sources…"
+                value={sourceSearch}
+                onChange={(e) => setSourceSearch(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background py-1.5 px-3 text-xs focus:border-accent focus:outline-none"
+              />
+            )}
+            <ul className="space-y-2 max-h-72 overflow-y-auto">
+              {filteredIndexed.map((src) => {
+                const attached = active.source_ids.includes(src.id)
+                const isToggling = toggling === src.id
+                return (
+                  <li
+                    key={src.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
+                  >
+                    <label className="flex flex-1 cursor-pointer items-center gap-3 min-w-0">
+                      {isToggling ? (
+                        <Loader2Icon className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={attached}
+                          onChange={() => onToggleSource(src.id)}
+                          disabled={!!toggling}
+                          className="size-4 shrink-0 accent-primary"
+                        />
+                      )}
+                      <span className="truncate">{src.name}</span>
+                    </label>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {src.byte_size ? `${(src.byte_size / 1024 / 1024).toFixed(1)} MB` : ""}
+                    </span>
+                  </li>
+                )
+              })}
+              {filteredIndexed.length === 0 && sourceSearch && (
+                <li className="py-3 text-center text-xs text-muted-foreground">No sources match "{sourceSearch}"</li>
+              )}
+            </ul>
+          </>
         )}
 
         {pendingSources.length > 0 && (
@@ -395,20 +442,35 @@ export function NotebooksPage() {
         )}
       </section>
 
-      {/* Danger zone */}
+      {/* Danger zone — S14: inline confirm */}
       <section className="rounded-xl border border-destructive/30 p-4 space-y-2">
         <h2 className="text-sm font-medium text-destructive">Danger zone</h2>
         <p className="text-xs text-muted-foreground">
           Deleting this notebook removes all its sessions permanently.
         </p>
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-destructive/50 text-destructive hover:bg-destructive/10"
-          onClick={() => onDeleteNotebook(active.id)}
-        >
-          <Trash2Icon className="size-4" /> Delete notebook
-        </Button>
+        {confirmDeleteId === active.id ? (
+          <div className="flex gap-2 pt-1">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => onDeleteNotebook(active.id)}
+            >
+              Confirm delete
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-destructive/50 text-destructive hover:bg-destructive/10"
+            onClick={() => setConfirmDeleteId(active.id)}
+          >
+            <Trash2Icon className="size-4" /> Delete notebook
+          </Button>
+        )}
       </section>
     </div>
   )

@@ -42,6 +42,8 @@ import { Button } from "@/components/ui/button"
 import { DocumentPreviewDrawer } from "@/components/document-preview-drawer"
 
 type IngestUi = { pct: number; step: string }
+// F3: per-file upload progress
+type UploadProgress = { name: string; pct: number }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -53,19 +55,35 @@ function isAccepted(f: File) {
   return ACCEPTED.includes(ext) || ACCEPTED_MIME.includes(f.type)
 }
 
+// S5: Semantic status badge colors — green/blue/red/amber/grey
 function statusBadge(status: string, step?: string) {
   const label = step ?? status
-  if (status === "indexed") return <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-primary/15 text-primary">{label}</span>
-  if (status === "error") return <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-destructive/15 text-destructive">{label}</span>
-  if (status === "processing" || status === "pending")
-    return <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-400"><Loader2Icon className="size-2.5 animate-spin" />{label}</span>
+  if (status === "indexed")
+    return <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-green-500/15 text-green-400">{label}</span>
+  if (status === "error")
+    return <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-destructive/15 text-destructive">{label}</span>
+  if (status === "processing" || (status === "pending" && step))
+    return <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/15 text-blue-400">
+      <Loader2Icon className="size-2.5 animate-spin" />{label}
+    </span>
+  if (status === "pending")
+    return <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted/40 text-muted-foreground">{label}</span>
   return <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted/40 text-muted-foreground">{label}</span>
 }
 
+// S4: already good — fmt is used for human-readable sizes
 function fmt(bytes: number | null) {
   if (!bytes) return "—"
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+// S19: file type icon + color
+function fileTypeIcon(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() ?? ""
+  if (ext === "pdf") return <FileTextIcon className="size-3.5 shrink-0 text-red-400/70" />
+  if (ext === "md") return <FileTextIcon className="size-3.5 shrink-0 text-blue-400/70" />
+  return <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground/60" />
 }
 
 // Group sources into folder buckets
@@ -82,7 +100,6 @@ function buildTree(sources: Source[], search: string): FolderGroup[] {
     map.get(key)!.push(s)
   }
 
-  // Sort: root first, then alphabetical
   const keys = [...map.keys()].sort((a, b) => {
     if (!a) return -1
     if (!b) return 1
@@ -96,13 +113,26 @@ function buildTree(sources: Source[], search: string): FolderGroup[] {
   }))
 }
 
+// F7: persist collapse state to sessionStorage
+function loadCollapsed(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem("corpus_collapsed")
+    if (raw) return new Set(JSON.parse(raw) as string[])
+  } catch { /* ignore */ }
+  return new Set()
+}
+function saveCollapsed(c: Set<string>) {
+  try { sessionStorage.setItem("corpus_collapsed", JSON.stringify([...c])) } catch { /* ignore */ }
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function CorpusPage() {
   const [sources, setSources] = useState<Source[]>([])
   const [search, setSearch] = useState("")
   const [uploading, setUploading] = useState(false)
-  const [uploadQueue, setUploadQueue] = useState<string[]>([])
+  // F3: per-file upload progress
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([])
   const [ingestUi, setIngestUi] = useState<Record<string, IngestUi>>({})
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
@@ -110,7 +140,8 @@ export function CorpusPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [preview, setPreview] = useState<Source | null>(null)
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  // F7: load from sessionStorage on mount
+  const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed)
   const loadRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
@@ -142,34 +173,54 @@ export function CorpusPage() {
     return () => unsubs.forEach((u) => u())
   }, [sources, trackIngest])
 
+  // F3: XHR-based upload with per-file progress
   async function uploadFiles(files: File[]) {
     const valid = files.filter(isAccepted)
     if (!valid.length) { setError(`No supported files. Accepted: ${ACCEPTED.join(", ")}`); return }
     setUploading(true); setError(null)
-    setUploadQueue(valid.map((f) => f.name))
+    setUploadProgress(valid.map((f) => ({ name: f.name, pct: 0 })))
 
     for (const file of valid) {
       const form = new FormData()
       form.append("file", file)
-      // Preserve relative path from webkitdirectory (e.g. "Research/Papers/doc.pdf")
       const relPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath
       if (relPath) form.append("folder_path", relPath)
 
       try {
         const token = localStorage.getItem("ownnblm_token")
-        const hdrs: Record<string, string> = {}
-        if (token) hdrs.Authorization = `Bearer ${token}`
-        else if (import.meta.env.DEV) hdrs["X-Dev-User-Id"] = "00000000-0000-4000-8000-000000000001"
-        const res = await fetch("/api/v1/sources", { method: "POST", body: form, headers: hdrs })
-        if (!res.ok) throw new Error(await res.text())
-        const src = (await res.json()) as Source
+        const src = await new Promise<Source>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open("POST", "/api/v1/sources")
+          if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+          else if (import.meta.env.DEV) xhr.setRequestHeader("X-Dev-User-Id", "00000000-0000-4000-8000-000000000001")
+
+          // F3: track upload bytes progress
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 100)
+              setUploadProgress((prev) => prev.map((p) => p.name === file.name ? { ...p, pct } : p))
+            }
+          }
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(JSON.parse(xhr.responseText) as Source)
+            } else {
+              reject(new Error(xhr.responseText || `HTTP ${xhr.status}`))
+            }
+          }
+          xhr.onerror = () => reject(new Error("Network error"))
+          xhr.send(form)
+        })
         setSources((prev) => [src, ...prev.filter((s) => s.id !== src.id)])
         setIngestUi((prev) => ({ ...prev, [src.id]: { pct: 5, step: "Queued" } }))
         trackIngest(src.id)
-      } catch (e) { setError(e instanceof Error ? e.message : `Failed: ${file.name}`) }
-      setUploadQueue((q) => q.filter((n) => n !== file.name))
+      } catch (e) {
+        setError(e instanceof Error ? e.message : `Failed: ${file.name}`)
+      }
+      setUploadProgress((prev) => prev.filter((p) => p.name !== file.name))
     }
     setUploading(false)
+    setUploadProgress([])
     setSuccessMsg(`${valid.length} file${valid.length !== 1 ? "s" : ""} queued for indexing.`)
     setTimeout(() => setSuccessMsg(null), 5000)
   }
@@ -177,7 +228,9 @@ export function CorpusPage() {
   function toggleFolder(path: string) {
     setCollapsed((prev) => {
       const next = new Set(prev)
-      next.has(path) ? next.delete(path) : next.add(path)
+      if (next.has(path)) { next.delete(path) } else { next.add(path) }
+      // F7: persist to sessionStorage
+      saveCollapsed(next)
       return next
     })
   }
@@ -214,11 +267,11 @@ export function CorpusPage() {
       {error && (
         <div className="flex items-center justify-between rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)}><XIcon className="size-4" /></button>
+          <button type="button" aria-label="Dismiss error" onClick={() => setError(null)}><XIcon className="size-4" /></button>
         </div>
       )}
       {successMsg && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary">
+        <div className="flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm text-green-400">
           <CheckCircle2Icon className="size-4 shrink-0" />{successMsg}
         </div>
       )}
@@ -228,14 +281,20 @@ export function CorpusPage() {
         <div className="rounded-xl border border-destructive/50 bg-card p-4 space-y-2">
           <p className="text-sm font-medium">Remove this document from your corpus?</p>
           <p className="text-xs text-muted-foreground">This cannot be undone. Sessions referencing it will lose this source.</p>
-          <div className="flex gap-2 pt-1"><Button size="sm" variant="destructive" onClick={onDelete}>Remove</Button><Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button></div>
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" variant="destructive" onClick={onDelete}>Remove</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          </div>
         </div>
       )}
       {confirmClear && (
         <div className="rounded-xl border border-destructive/50 bg-card p-4 space-y-2">
           <p className="text-sm font-medium">Delete ALL documents in this workspace?</p>
           <p className="text-xs text-muted-foreground">All sessions will lose source links.</p>
-          <div className="flex gap-2 pt-1"><Button size="sm" variant="destructive" onClick={onClear}>Delete all</Button><Button size="sm" variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button></div>
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" variant="destructive" onClick={onClear}>Delete all</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
+          </div>
         </div>
       )}
 
@@ -258,15 +317,26 @@ export function CorpusPage() {
           <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => folderInputRef.current?.click()}>
             <FolderOpenIcon className="size-3.5" /> Pick folder
           </Button>
-          {/* @ts-ignore */}
+          {/* @ts-expect-error webkitdirectory is not in standard React HTML types */}
           <input ref={folderInputRef} type="file" className="hidden" webkitdirectory="" multiple
             onChange={(e) => { if (e.target.files?.length) { uploadFiles(Array.from(e.target.files)); e.target.value = "" } }} />
         </div>
-        {uploadQueue.length > 0 && (
-          <div className="mt-3 w-full max-w-sm space-y-1 text-left">
-            {uploadQueue.map((name) => (
-              <div key={name} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2Icon className="size-3 animate-spin shrink-0" /><span className="truncate">{name}</span>
+
+        {/* F3: per-file upload progress */}
+        {uploadProgress.length > 0 && (
+          <div className="mt-3 w-full max-w-sm space-y-2 text-left">
+            {uploadProgress.map((p) => (
+              <div key={p.name} className="space-y-0.5">
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Loader2Icon className="size-3 animate-spin shrink-0" />
+                    <span className="truncate">{p.name}</span>
+                  </div>
+                  <span className="shrink-0 tabular-nums">{p.pct}%</span>
+                </div>
+                <div className="h-1 overflow-hidden rounded-full bg-muted/30">
+                  <div className="h-full rounded-full bg-accent transition-all duration-200" style={{ width: `${p.pct}%` }} />
+                </div>
               </div>
             ))}
           </div>
@@ -284,8 +354,8 @@ export function CorpusPage() {
           </div>
           <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
             <span>{sources.length} file{sources.length !== 1 ? "s" : ""}</span>
-            {totalIndexed > 0 && <span className="text-primary">{totalIndexed} indexed</span>}
-            {totalProcessing > 0 && <span className="flex items-center gap-1 text-amber-400"><Loader2Icon className="size-3 animate-spin" />{totalProcessing} indexing</span>}
+            {totalIndexed > 0 && <span className="text-green-400">{totalIndexed} indexed</span>}
+            {totalProcessing > 0 && <span className="flex items-center gap-1 text-blue-400"><Loader2Icon className="size-3 animate-spin" />{totalProcessing} indexing</span>}
           </div>
           <button type="button" onClick={() => setConfirmClear(true)}
             className="ml-auto shrink-0 text-xs text-muted-foreground hover:text-destructive hover:underline underline-offset-2">
@@ -323,6 +393,7 @@ export function CorpusPage() {
                 {/* ── Folder row ── */}
                 <button
                   type="button"
+                  aria-expanded={!isCollapsed}
                   onClick={() => toggleFolder(group.path)}
                   className="grid w-full grid-cols-[1fr_80px_90px_70px_28px_28px_28px] items-center gap-1 bg-surface/30 px-3 py-2 text-left transition-colors hover:bg-muted/30"
                 >
@@ -339,10 +410,7 @@ export function CorpusPage() {
                   <span className="text-[10px] text-muted-foreground">
                     {groupIndexed}/{group.sources.length} indexed
                   </span>
-                  <span />
-                  <span />
-                  <span />
-                  <span />
+                  <span /><span /><span /><span />
                 </button>
 
                 {/* ── Document rows ── */}
@@ -351,25 +419,30 @@ export function CorpusPage() {
                   return (
                     <div key={s.id} className="border-t border-border/40 last:border-b-0">
                       <div className="grid grid-cols-[1fr_80px_90px_70px_28px_28px_28px] items-center gap-1 px-3 py-1.5 text-xs transition-colors hover:bg-muted/20">
-                        {/* Name */}
+                        {/* Name — S19: file type icon */}
                         <span className="flex min-w-0 items-center gap-2 pl-7">
-                          <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground/60" />
+                          {fileTypeIcon(s.name)}
                           <span className="truncate text-foreground/90" title={s.name}>{s.name}</span>
                         </span>
                         {/* Size */}
                         <span className="text-right text-[10px] text-muted-foreground tabular-nums">{fmt(s.byte_size)}</span>
-                        {/* Status */}
+                        {/* Status — S5: semantic colors applied via statusBadge */}
                         <span>{statusBadge(s.status, progress?.step)}</span>
                         {/* Private */}
                         <span className="flex justify-center">
-                          <input type="checkbox" className="size-3 accent-primary cursor-pointer" checked={Boolean(s.is_private)}
+                          <input
+                            type="checkbox"
+                            aria-label={`Toggle private for ${s.name}`}
+                            className="size-3 accent-primary cursor-pointer"
+                            checked={Boolean(s.is_private)}
                             onChange={(e) => patchSourcePrivacy(s.id, e.target.checked).then((u) =>
-                              setSources((prev) => prev.map((x) => x.id === u.id ? u : x)))} />
+                              setSources((prev) => prev.map((x) => x.id === u.id ? u : x)))}
+                          />
                         </span>
                         {/* Preview */}
                         <span className="flex justify-center">
                           {s.status === "indexed" && (
-                            <button type="button" title="Preview" onClick={() => setPreview(s)}
+                            <button type="button" title="Preview document" aria-label={`Preview ${s.name}`} onClick={() => setPreview(s)}
                               className="rounded p-0.5 text-muted-foreground transition-colors hover:text-accent">
                               <ExternalLinkIcon className="size-3.5" />
                             </button>
@@ -378,15 +451,15 @@ export function CorpusPage() {
                         {/* Retry */}
                         <span className="flex justify-center">
                           {["error", "pending", "processing"].includes(s.status) && (
-                            <button type="button" title="Retry" onClick={() => onRetry(s.id)}
-                              className="rounded p-0.5 text-muted-foreground transition-colors hover:text-primary">
+                            <button type="button" title="Retry ingest" aria-label={`Retry ${s.name}`} onClick={() => onRetry(s.id)}
+                              className="rounded p-0.5 text-muted-foreground transition-colors hover:text-blue-400">
                               <RefreshCwIcon className="size-3.5" />
                             </button>
                           )}
                         </span>
                         {/* Delete */}
                         <span className="flex justify-center">
-                          <button type="button" title="Delete" onClick={() => setConfirmDelete(s.id)}
+                          <button type="button" title="Delete document" aria-label={`Delete ${s.name}`} onClick={() => setConfirmDelete(s.id)}
                             className="rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive">
                             <Trash2Icon className="size-3.5" />
                           </button>
@@ -395,7 +468,7 @@ export function CorpusPage() {
                       {/* Ingest progress bar */}
                       {progress && (
                         <div className="ml-12 mr-3 mb-1 h-1 overflow-hidden rounded-full bg-muted/20">
-                          <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progress.pct}%` }} />
+                          <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${progress.pct}%` }} />
                         </div>
                       )}
                       {s.error_message && (

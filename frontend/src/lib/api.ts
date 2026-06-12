@@ -22,6 +22,12 @@ export async function api<T = void>(path: string, init?: RequestInit): Promise<T
     ...init,
     headers: { ...headers(), ...(init?.headers as Record<string, string>) },
   })
+  if (res.status === 401) {
+    clearAuth()
+    // Small delay so any in-flight toast can surface before redirect
+    setTimeout(() => { window.location.href = "/login?reason=session_expired" }, 100)
+    throw new Error("Session expired. Redirecting to sign-in…")
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail))
