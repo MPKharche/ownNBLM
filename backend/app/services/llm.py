@@ -47,7 +47,7 @@ def _resolve_llm_route(
         if not api_key:
             raise LLMRouterError("No Anthropic API key configured")
         if resolved_model.startswith("openai/") or resolved_model.startswith("openrouter/"):
-            resolved_model = "claude-sonnet-4-20250514"
+            resolved_model = "claude-haiku-4-5-20251001"
         elif resolved_model.startswith("anthropic/"):
             resolved_model = resolved_model.removeprefix("anthropic/")
         return resolved_model, api_key, settings.anthropic_base_url.rstrip("/")

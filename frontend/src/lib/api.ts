@@ -2,6 +2,13 @@ const API_BASE = import.meta.env.VITE_API_URL ?? ""
 
 const DEV_USER_ID = "00000000-0000-4000-8000-000000000001"
 
+/** URL to preview a source file inline in the browser (auth via token query param). */
+export function sourcePreviewUrl(sourceId: string): string {
+  const token = localStorage.getItem("ownnblm_token")
+  const qs = token ? `?access_token=${encodeURIComponent(token)}` : ""
+  return `${API_BASE}/api/v1/sources/${sourceId}/preview${qs}`
+}
+
 function headers(): HeadersInit {
   const h: Record<string, string> = {}
   const token = localStorage.getItem("ownnblm_token")

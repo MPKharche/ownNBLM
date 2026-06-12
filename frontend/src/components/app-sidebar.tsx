@@ -23,7 +23,7 @@ import {
   SettingsIcon,
 } from "lucide-react"
 
-const navItems = [
+export const navItems = [
   { title: "Notebooks", url: "/notebooks", icon: BookOpenIcon },
   { title: "Corpus", url: "/corpus", icon: FileUpIcon },
   { title: "Chat", url: "/chat", icon: MessageSquareIcon },
@@ -47,7 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="data-[slot=sidebar-menu-button]:p-1.5!"
-              render={<Link to="/chat" />}
+              render={<Link to="/notebooks" />}
             >
               <CommandIcon className="size-5!" />
               <span className="font-heading text-base font-semibold">ownNBLM</span>
@@ -59,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu className="px-2">
           {navItems.map((item) => {
             const Icon = item.icon
-            const active = location.pathname === item.url
+            const active = location.pathname.startsWith(item.url)
             return (
               <SidebarMenuItem key={item.url}>
                 <SidebarMenuButton
@@ -79,5 +79,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={{ name: user.name, email: user.email, avatar: "" }} onLogout={logout} />
       </SidebarFooter>
     </Sidebar>
+  )
+}
+
+/** Mobile bottom navigation bar — shown only on small screens */
+export function MobileBottomNav() {
+  const location = useLocation()
+  // Show only the 3 most-used items on mobile bottom bar
+  const mobileItems = navItems.slice(0, 3)
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border bg-background/95 backdrop-blur-sm sm:hidden">
+      {mobileItems.map((item) => {
+        const Icon = item.icon
+        const active = location.pathname.startsWith(item.url)
+        return (
+          <Link
+            key={item.url}
+            to={item.url}
+            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] transition-colors ${
+              active ? "text-accent" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className={`size-5 ${active ? "text-accent" : ""}`} />
+            <span>{item.title}</span>
+          </Link>
+        )
+      })}
+    </nav>
   )
 }

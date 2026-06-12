@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     llm_budget_usd: Decimal = Decimal("0.005")
     llm_budget_window_hours: int = 48
     llm_budget_scope: str = "global"  # global | org
-    llm_max_output_tokens: int = 512
+    llm_max_output_tokens: int = 1024
     llm_retrieval_top_k: int = 5
     llm_max_chunk_chars: int = 800
     # OpenRouter list prices per 1M tokens (USD) for burn estimation

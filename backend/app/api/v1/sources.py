@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -142,6 +142,45 @@ def retry_source(source_id: str, db: DbSession, user: CurrentUser):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"ok": True, "status": "pending"}
+
+
+@router.get("/{source_id}/preview")
+def preview_source(source_id: str, db: DbSession, user: CurrentUser):
+    """Serve the raw file for in-browser preview (PDF viewer, text display).
+    Auth-gated: only members of the same org can preview."""
+    from pathlib import Path
+    import mimetypes
+
+    source = db.get(Source, source_id)
+    if source is None or source.org_id != user.org_id:
+        raise HTTPException(status_code=404)
+
+    settings = get_settings()
+    if settings.storage_backend == "local":
+        if not source.file_path:
+            raise HTTPException(status_code=404, detail="No file path stored")
+        path = Path(source.file_path)
+        if not path.is_absolute():
+            path = Path(settings.storage_local_path) / source.file_path
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        # Security: ensure path stays within storage root
+        storage_root = Path(settings.storage_local_path).resolve()
+        if not path.resolve().is_relative_to(storage_root):
+            raise HTTPException(status_code=403, detail="Access denied")
+        mime, _ = mimetypes.guess_type(str(path))
+        return FileResponse(
+            path=str(path),
+            media_type=mime or "application/octet-stream",
+            filename=source.name,
+            headers={"Content-Disposition": "inline"},
+        )
+
+    # S3/R2 — redirect to signed URL
+    storage = get_storage()
+    url = storage.signed_url(source.file_path or "", expires_seconds=3600)
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=url, status_code=307)
 
 
 @router.get("/{source_id}/events")
