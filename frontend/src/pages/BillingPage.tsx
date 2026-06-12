@@ -37,11 +37,15 @@ export function BillingPage() {
   const [provider, setProvider] = useState<string | null>(null)
 
   useEffect(() => {
-    api<{ plans: Plan[] }>("/api/v1/billing/plans").then((r) => setPlans(r.plans))
-    api<Usage>("/api/v1/usage/dashboard").then(setUsage)
-    api<{ provider: string | null; enabled: boolean }>("/api/v1/billing/provider").then((r) =>
-      setProvider(r.enabled ? r.provider : null),
-    )
+    api<{ plans: Plan[] }>("/api/v1/billing/plans")
+      .then((r) => setPlans(r.plans))
+      .catch((e: unknown) => setMsg(e instanceof Error ? e.message : "Failed to load plans"))
+    api<Usage>("/api/v1/usage/dashboard")
+      .then(setUsage)
+      .catch((e: unknown) => setMsg(e instanceof Error ? e.message : "Failed to load usage"))
+    api<{ provider: string | null; enabled: boolean }>("/api/v1/billing/provider")
+      .then((r) => setProvider(r.enabled ? r.provider : null))
+      .catch(() => setProvider(null))
   }, [])
 
   async function upgrade(planId: string) {

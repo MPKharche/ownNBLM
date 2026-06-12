@@ -1,0 +1,46 @@
+lm.planetfinance.cloud {
+    # API — proxy to FastAPI container
+    handle /api/* {
+        reverse_proxy api:8000 {
+            # SSE / streaming — disable buffering
+            flush_interval -1
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy api:8000
+    }
+
+    # Metrics (restrict to internal — remove or add basic_auth if you expose it)
+    handle /metrics {
+        reverse_proxy api:8000
+    }
+
+    # Frontend — serve via nginx container (SPA with fallback routing)
+    handle {
+        reverse_proxy web:80
+    }
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Access log
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Redirect bare HTTP to HTTPS (Caddy does this automatically, but explicit is clear)
+http://lm.planetfinance.cloud {
+    redir https://lm.planetfinance.cloud{uri} permanent
+}

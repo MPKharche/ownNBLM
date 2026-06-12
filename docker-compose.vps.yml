@@ -1,4 +1,5 @@
-# API-only stack for VPS (frontend on Vercel proxies /api here)
+# DEPRECATED: Use docker-compose.full.yml for the full VPS stack (lm.planetfinance.cloud).
+# This file kept for reference only — it was the backend-only Vercel+VPS split setup.
 services:
   postgres:
     image: postgres:16-alpine
@@ -24,8 +25,8 @@ services:
     environment:
       ENVIRONMENT: production
       DATABASE_URL: postgresql+psycopg://ownnblm:${POSTGRES_PASSWORD:-ownnblm}@postgres:5432/ownnblm
-      CORS_ORIGINS: https://frontend-jet-ten-16.vercel.app,https://ownnblm.vercel.app
-      FRONTEND_URL: https://frontend-jet-ten-16.vercel.app
+      CORS_ORIGINS: https://lm.planetfinance.cloud
+      FRONTEND_URL: https://lm.planetfinance.cloud
     volumes:
       - api_data:/app/data
     depends_on:

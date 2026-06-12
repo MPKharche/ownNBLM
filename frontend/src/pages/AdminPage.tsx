@@ -133,7 +133,7 @@ export function AdminPage() {
           <Button variant="outline" size="sm" onClick={() => openBillingPortal().catch((e) => setMsg(String(e)))}>
             Billing portal
           </Button>
-          <Button variant="outline" size="sm" onClick={() => sendDigestPreview().then((r) => setMsg(`Digest sent to ${r.sent} owner(s)`))}>
+          <Button variant="outline" size="sm" onClick={() => sendDigestPreview().then((r) => setMsg(`Digest sent to ${r.sent} owner(s)`)).catch((e: unknown) => setMsg(e instanceof Error ? e.message : "Digest failed"))}>
             Send digest
           </Button>
         </div>

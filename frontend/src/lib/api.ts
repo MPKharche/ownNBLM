@@ -94,18 +94,6 @@ export async function api<T = void>(
   init?: RequestInit,
   retryCount = 0,
 ): Promise<T> {
-  // Validate API_BASE is configured
-  if (!API_BASE) {
-    throw new ApiError(
-      "API endpoint not configured. Please set VITE_API_URL environment variable.",
-      undefined,
-      undefined,
-      false,
-      false,
-      false,
-    )
-  }
-
   // Check if offline
   if (!isOnline()) {
     throw new ApiError(
@@ -232,10 +220,7 @@ export async function api<T = void>(
       // Check if it's a CORS error
       if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
         throw new ApiError(
-          `Cannot connect to server at ${API_BASE}. Please check:\n` +
-            "• Your internet connection\n" +
-            "• The server is running\n" +
-            "• CORS is configured correctly",
+          "Cannot connect to server. Please check your internet connection.",
           undefined,
           undefined,
           true,

@@ -63,21 +63,25 @@ export function ChatPage() {
   // Load notebook metadata + sessions
   useEffect(() => {
     async function loadData() {
-      if (notebookId) {
-        const [nb, nbSessions] = await Promise.all([
-          api<Notebook>(`/api/v1/notebooks/${notebookId}`),
-          listNotebookSessions(notebookId),
-        ])
-        setNotebook(nb)
-        setSessions(nbSessions)
-        if (!activeId && nbSessions[0]) setActiveId(nbSessions[0].id)
-      } else {
-        const allSessions = await api<Session[]>("/api/v1/sessions")
-        setSessions(allSessions)
-        if (!activeId && allSessions[0]) setActiveId(allSessions[0].id)
+      try {
+        if (notebookId) {
+          const [nb, nbSessions] = await Promise.all([
+            api<Notebook>(`/api/v1/notebooks/${notebookId}`),
+            listNotebookSessions(notebookId),
+          ])
+          setNotebook(nb)
+          setSessions(nbSessions)
+          if (!activeId && nbSessions[0]) setActiveId(nbSessions[0].id)
+        } else {
+          const allSessions = await api<Session[]>("/api/v1/sessions")
+          setSessions(allSessions)
+          if (!activeId && allSessions[0]) setActiveId(allSessions[0].id)
+        }
+        const srcs = await api<Source[]>("/api/v1/sources")
+        setSources(srcs)
+      } catch {
+        // Sessions/sources failing to load is non-fatal — UI shows empty state
       }
-      const srcs = await api<Source[]>("/api/v1/sources")
-      setSources(srcs)
     }
     loadData()
   }, [notebookId])

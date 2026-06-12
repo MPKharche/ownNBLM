@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import path from "node:path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
@@ -53,6 +54,15 @@ export default defineConfig(({ mode }) => {
       "/health": apiProxy,
       "/api": apiProxy,
       "/metrics": apiProxy,
+    },
+  },
+  test: {
+    environment: "jsdom",
+    globals: false,
+    clearMocks: true,
+    restoreMocks: true,
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
     },
   },
   }

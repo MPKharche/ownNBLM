@@ -39,8 +39,12 @@ export function SharePage() {
   useEffect(() => {
     if (!token) return
     fetch(`/api/v1/share/${token}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Share link not found (${r.status})`)
+        return r.json()
+      })
       .then(setData)
+      .catch(() => setData({ session: { title: "Session unavailable" }, messages: [] }))
     fetchShareAnnotations(token)
       .then(setAnnotations)
       .catch(() => setAnnotations([]))
