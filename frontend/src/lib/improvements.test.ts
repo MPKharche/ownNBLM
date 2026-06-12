@@ -280,7 +280,7 @@ describe("F6 — Send blocked when no indexed sources", () => {
   })
 
   it("noSourcesBlocked is false when sources exist", () => {
-    const indexedCount = 3
+    const indexedCount: number = 3
     const hasSessions = true
     const noSourcesBlocked = indexedCount === 0 && hasSessions
     expect(noSourcesBlocked).toBe(false)
@@ -311,11 +311,11 @@ describe("F7 — Corpus folder collapse persisted in sessionStorage", () => {
    */
 
   beforeEach(() => {
+    const store: Record<string, string> = {}
     vi.stubGlobal("sessionStorage", {
-      _store: {} as Record<string, string>,
-      getItem(k: string) { return (this._store as Record<string, string>)[k] ?? null },
-      setItem(k: string, v: string) { (this._store as Record<string, string>)[k] = v },
-      removeItem(k: string) { delete (this._store as Record<string, string>)[k] },
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => { store[k] = v },
+      removeItem: (k: string) => { delete store[k] },
     })
   })
   afterEach(() => vi.restoreAllMocks())
@@ -652,7 +652,7 @@ describe("S12 — Markdown headings capped at h3 in chat messages", () => {
   })
 
   it("h2 maps to h4", () => {
-    const mdLevel = 2
+    const mdLevel: number = 2
     const rendered = mdLevel === 1 ? "h3" : mdLevel === 2 ? "h4" : "h5"
     expect(rendered).toBe("h4")
   })
@@ -686,7 +686,7 @@ describe("S14 — Notebook deletion uses inline confirm, not window.confirm", ()
     // The cancel handler sets confirmDeleteId state to null
     // We model this as a pure state transition
     const getNextState = () => null
-    const result = getNextState("nb-123")
+    const result = getNextState()
     expect(result).toBeNull()
   })
 })
