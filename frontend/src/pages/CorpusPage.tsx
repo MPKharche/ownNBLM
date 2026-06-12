@@ -129,6 +129,7 @@ function saveCollapsed(c: Set<string>) {
 
 export function CorpusPage() {
   const [sources, setSources] = useState<Source[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [uploading, setUploading] = useState(false)
   // F3: per-file upload progress
@@ -147,7 +148,15 @@ export function CorpusPage() {
   const folderInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(() => {
-    api<Source[]>("/api/v1/sources").then(setSources).catch(console.error)
+    setLoading(true)
+    setError(null)
+    api<Source[]>("/api/v1/sources")
+      .then(setSources)
+      .catch((e) => {
+        console.error("Failed to load sources:", e)
+        setError(e instanceof Error ? e.message : "Failed to load documents")
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
@@ -365,7 +374,13 @@ export function CorpusPage() {
       )}
 
       {/* ── Empty state ── */}
-      {sources.length === 0 && !uploading && (
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading documents...</p>
+        </div>
+      )}
+      {!loading && sources.length === 0 && !uploading && (
         <p className="py-10 text-center text-sm text-muted-foreground">No documents yet — upload files or pick a folder above.</p>
       )}
 

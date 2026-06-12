@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 
 import { AppShell } from "@/layouts/AppShell"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 const BillingPage = lazy(() =>
   import("@/pages/BillingPage").then((m) => ({ default: m.BillingPage })),
@@ -85,9 +86,11 @@ function AppRoutes() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

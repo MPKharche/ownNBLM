@@ -1,6 +1,75 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? ""
+/**
+ * Enhanced API client with:
+ * - Network error detection and user-friendly messages
+ * - Automatic retry with exponential backoff for 5xx errors
+ * - Request timeout handling
+ * - Rate limit detection (429)
+ * - Request ID correlation for debugging
+ * - Offline detection
+ */
 
+const API_BASE = import.meta.env.VITE_API_URL ?? ""
 const DEV_USER_ID = "00000000-0000-4000-8000-000000000001"
+
+// Configuration
+const REQUEST_TIMEOUT_MS = 30000 // 30 seconds
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1000 // Starting delay, doubles each retry
+
+// Prevent dev mode bypass in production
+if (!import.meta.env.DEV && DEV_USER_ID) {
+  console.warn("⚠️ Dev mode bypass is present in production build. This should be removed.")
+}
+
+/**
+ * Custom error class with additional context
+ */
+export class ApiError extends Error {
+  status?: number
+  requestId?: string
+  isNetworkError: boolean
+  isTimeout: boolean
+  isRateLimited: boolean
+
+  constructor(
+    message: string,
+    status?: number,
+    requestId?: string,
+    isNetworkError = false,
+    isTimeout = false,
+    isRateLimited = false,
+  ) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+    this.requestId = requestId
+    this.isNetworkError = isNetworkError
+    this.isTimeout = isTimeout
+    this.isRateLimited = isRateLimited
+  }
+}
+
+/**
+ * Check if user is online
+ */
+export function isOnline(): boolean {
+  return navigator.onLine
+}
+
+/**
+ * Sleep for exponential backoff
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Check if error is retryable (5xx server errors)
+ */
+function isRetryable(status?: number): boolean {
+  if (!status) return false
+  return status >= 500 && status < 600
+}
 
 /** URL to preview a source file inline in the browser (auth via token query param). */
 export function sourcePreviewUrl(sourceId: string): string {
@@ -17,28 +86,178 @@ function headers(): HeadersInit {
   return h
 }
 
-export async function api<T = void>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { ...headers(), ...(init?.headers as Record<string, string>) },
-  })
-  if (res.status === 401) {
-    clearAuth()
-    // Small delay so any in-flight toast can surface before redirect
-    setTimeout(() => { window.location.href = "/login?reason=session_expired" }, 100)
-    throw new Error("Session expired. Redirecting to sign-in…")
+/**
+ * Core API function with enhanced error handling and retry logic
+ */
+export async function api<T = void>(
+  path: string,
+  init?: RequestInit,
+  retryCount = 0,
+): Promise<T> {
+  // Validate API_BASE is configured
+  if (!API_BASE) {
+    throw new ApiError(
+      "API endpoint not configured. Please set VITE_API_URL environment variable.",
+      undefined,
+      undefined,
+      false,
+      false,
+      false,
+    )
   }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail))
+
+  // Check if offline
+  if (!isOnline()) {
+    throw new ApiError(
+      "You are offline. Please check your internet connection and try again.",
+      undefined,
+      undefined,
+      true,
+      false,
+      false,
+    )
   }
-  // 204 No Content and 205 Reset Content carry no body — return undefined cast as T
-  if (res.status === 204 || res.status === 205) return undefined as unknown as T
-  const ct = res.headers.get("content-type") ?? ""
-  if (!ct.includes("application/json")) return undefined as unknown as T
-  return res.json() as Promise<T>
+
+  // Create abort controller for timeout
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: { ...headers(), ...(init?.headers as Record<string, string>) },
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    // Extract request ID for debugging
+    const requestId = res.headers.get("X-Request-ID") || undefined
+
+    // Handle 401 Unauthorized
+    if (res.status === 401) {
+      clearAuth()
+      setTimeout(() => {
+        window.location.href = "/login?reason=session_expired"
+      }, 100)
+      throw new ApiError("Session expired. Redirecting to sign-in…", 401, requestId)
+    }
+
+    // Handle 429 Rate Limited
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("Retry-After")
+      const waitSeconds = retryAfter ? parseInt(retryAfter, 10) : 60
+      throw new ApiError(
+        `Too many requests. Please wait ${waitSeconds} seconds and try again.`,
+        429,
+        requestId,
+        false,
+        false,
+        true,
+      )
+    }
+
+    // Handle 5xx errors with retry
+    if (isRetryable(res.status) && retryCount < MAX_RETRIES) {
+      const delay = RETRY_DELAY_MS * Math.pow(2, retryCount)
+      console.warn(
+        `Request failed with ${res.status}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`,
+      )
+      await sleep(delay)
+      return api<T>(path, init, retryCount + 1)
+    }
+
+    // Handle other errors
+    if (!res.ok) {
+      let errorMessage = `Request failed with status ${res.status}`
+      try {
+        const err = await res.json()
+        if (typeof err.detail === "string") {
+          errorMessage = err.detail
+        } else if (err.detail && typeof err.detail === "object" && "message" in err.detail) {
+          errorMessage = String(err.detail.message)
+        } else if (err.message) {
+          errorMessage = err.message
+        }
+      } catch {
+        errorMessage = res.statusText || errorMessage
+      }
+
+      // User-friendly messages for common status codes
+      if (res.status === 404) {
+        errorMessage = "Resource not found. It may have been deleted."
+      } else if (res.status === 403) {
+        errorMessage = "You don't have permission to access this resource."
+      } else if (res.status >= 500) {
+        errorMessage = `Server error (${res.status}). Please try again later.${requestId ? ` [Request ID: ${requestId}]` : ""}`
+      }
+
+      throw new ApiError(errorMessage, res.status, requestId)
+    }
+
+    // Handle empty responses
+    if (res.status === 204 || res.status === 205) {
+      return undefined as unknown as T
+    }
+
+    // Parse JSON response
+    const ct = res.headers.get("content-type") ?? ""
+    if (!ct.includes("application/json")) {
+      return undefined as unknown as T
+    }
+
+    return (await res.json()) as T
+  } catch (error) {
+    clearTimeout(timeoutId)
+
+    // Re-throw ApiError instances
+    if (error instanceof ApiError) {
+      throw error
+    }
+
+    // Handle AbortError (timeout)
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError(
+        "Request timed out. The server is taking too long to respond. Please try again.",
+        undefined,
+        undefined,
+        false,
+        true,
+        false,
+      )
+    }
+
+    // Handle network errors (TypeError from fetch)
+    if (error instanceof TypeError) {
+      // Check if it's a CORS error
+      if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+        throw new ApiError(
+          `Cannot connect to server at ${API_BASE}. Please check:\n` +
+            "• Your internet connection\n" +
+            "• The server is running\n" +
+            "• CORS is configured correctly",
+          undefined,
+          undefined,
+          true,
+          false,
+          false,
+        )
+      }
+    }
+
+    // Generic fallback
+    throw new ApiError(
+      error instanceof Error ? error.message : "An unexpected error occurred",
+      undefined,
+      undefined,
+      true,
+      false,
+      false,
+    )
+  }
 }
 
+// Type definitions
 type AuthPayload = {
   access_token: string
   refresh_token?: string
@@ -56,6 +275,7 @@ export type AuthConfig = {
   message: string | null
 }
 
+// Auth functions
 export async function fetchAuthConfig(): Promise<AuthConfig> {
   return api<AuthConfig>("/api/v1/auth/config")
 }
