@@ -17,6 +17,7 @@ class Source(Base):
         String(36), ForeignKey("orgs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(512), nullable=False)
+    folder_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     source_type: Mapped[str] = mapped_column(String(32), default="upload", nullable=False)
     file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False, index=True)

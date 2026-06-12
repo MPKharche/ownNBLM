@@ -154,6 +154,7 @@ export async function startCheckout(plan: string) {
 export type Source = {
   id: string
   name: string
+  folder_path: string | null
   status: string
   source_type: string
   byte_size: number | null

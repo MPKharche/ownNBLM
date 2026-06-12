@@ -27,6 +27,7 @@ class SourceOut(BaseModel):
 
     id: str
     name: str
+    folder_path: str | None = None
     status: str
     source_type: str
     byte_size: int | None
@@ -59,6 +60,7 @@ async def upload_source(
     user: CurrentUser,
     _rate: IngestRateLimit,
     file: UploadFile = File(...),
+    folder_path: str | None = None,
 ):
     settings = get_settings()
     data = await file.read()
@@ -80,10 +82,19 @@ async def upload_source(
         if settings.storage_backend == "local"
         else key
     )
+    # Normalise folder_path: strip leading slash, keep only directory part
+    import posixpath
+    clean_folder = None
+    if folder_path:
+        clean_folder = folder_path.strip("/").replace("\\", "/")
+        clean_folder = posixpath.dirname(clean_folder) if "/" in clean_folder else clean_folder
+        clean_folder = clean_folder or None
+
     source = Source(
         id=str(uuid.uuid4()),
         org_id=user.org_id,
         name=file.filename or "upload.bin",
+        folder_path=clean_folder,
         source_type="upload",
         file_path=file_path,
         status="pending",
